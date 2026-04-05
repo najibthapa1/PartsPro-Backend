@@ -1,0 +1,30 @@
+# IDE settings
+.vs/
+.vscode/
+.idea/
+
+# Build outputs
+**/bin/
+**/obj/
+
+# .NET user-specific files
+*.user
+*.suo
+*.rsuser
+*.userosscache
+
+# Local secrets / environment files
+appsettings.*.local.json
+secrets.json
+.env
+.env.*
+
+# React / frontend outputs
+node_modules/
+dist/
+build/
+coverage/
+
+# Logs
+*.log
+
