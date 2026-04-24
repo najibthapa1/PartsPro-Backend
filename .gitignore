@@ -14,7 +14,8 @@
 *.userosscache
 
 # Local secrets / environment files
-appsettings.*.local.json
+**/appsettings.Development.json
+
 secrets.json
 .env
 .env.*

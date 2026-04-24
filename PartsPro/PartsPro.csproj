@@ -7,6 +7,8 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <ProjectReference Include="../PartsPro.Domain/PartsPro.Domain.csproj" />
+        <ProjectReference Include="../PartsPro.Infrastructure/PartsPro.Infrastructure.csproj" />
         <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.2" />
         <PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="10.0.5">
             <PrivateAssets>all</PrivateAssets>
