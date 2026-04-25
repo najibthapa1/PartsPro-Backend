@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using PartsPro.Application.Interfaces;
+using PartsPro.Application.Services;
 using PartsPro.Infrastructure.Data;
 
 namespace PartsPro.Infrastructure;
@@ -14,13 +16,12 @@ public static class DependencyInjection
         services.AddDbContext<AppDbContext>(options =>
             options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
 
-        //services for vendor management
         services.AddScoped<IVendorRepository, VendorRepository>();
         services.AddScoped<IVendorService, VendorService>();
-        
-        //services for parts management
         services.AddScoped<IPartRepository, PartRepository>();
         services.AddScoped<IPartService, PartService>();
+        services.AddScoped<IAuthService, AuthService>();
+
         return services;
     }
 }
