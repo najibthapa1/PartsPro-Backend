@@ -14,6 +14,10 @@ public static class DependencyInjection
         services.AddDbContext<AppDbContext>(options =>
             options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
 
+        //services for vendor management
+        services.AddScoped<IVendorRepository, VendorRepository>();
+        services.AddScoped<IVendorService, VendorService>();
+        
         return services;
     }
 }
