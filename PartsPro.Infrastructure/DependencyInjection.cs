@@ -18,6 +18,9 @@ public static class DependencyInjection
         services.AddScoped<IVendorRepository, VendorRepository>();
         services.AddScoped<IVendorService, VendorService>();
         
+        //services for parts management
+        services.AddScoped<IPartRepository, PartRepository>();
+        services.AddScoped<IPartService, PartService>();
         return services;
     }
 }
