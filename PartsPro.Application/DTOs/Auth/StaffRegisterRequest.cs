@@ -2,7 +2,10 @@ using System.ComponentModel.DataAnnotations;
 
 namespace PartsPro.Application.DTOs.Auth;
 
-public class RegisterRequest
+/// <summary>
+/// DTO specifically for registering Staff members by an Admin
+/// </summary>
+public class StaffRegisterRequest
 {
     [Required(ErrorMessage = "Full name is required")]
     public string FullName { get; set; } = string.Empty;
@@ -21,4 +24,7 @@ public class RegisterRequest
 
     [Required(ErrorMessage = "Address is required")]
     public string Address { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Department is required for staff")]
+    public string Department { get; set; } = string.Empty;
 }

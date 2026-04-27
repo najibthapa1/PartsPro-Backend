@@ -4,6 +4,7 @@ using Microsoft.IdentityModel.Tokens;
 using PartsPro.Domain.Entities;
 using PartsPro.Infrastructure;
 using PartsPro.Infrastructure.Data;
+using PartsPro.Middleware;
 using Scalar.AspNetCore;
 using System.Text;
 
@@ -65,6 +66,8 @@ builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
+
+app.UseMiddleware<ExceptionMiddleware>();
 
 // Apply migrations and seed data
 using (var scope = app.Services.CreateScope())

@@ -1,6 +1,7 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PartsPro.Application.DTOs.Auth;
-using PartsPro.Application.Interfaces;
+using PartsPro.Application.Interfaces.Services;
 
 namespace PartsPro.Controllers;
 
@@ -9,72 +10,71 @@ namespace PartsPro.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
-    private readonly ILogger<AuthController> _logger;
 
-    public AuthController(IAuthService authService, ILogger<AuthController> logger)
+    public AuthController(IAuthService authService)
     {
         _authService = authService;
-        _logger = logger;
     }
 
     /// <summary>
-    /// Login with email and password
+    /// Authenticate a user and return a JWT token
     /// </summary>
-    /// <param name="request">Login credentials</param>
-    /// <returns>JWT token and user info with role</returns>
     [HttpPost("login")]
     public async Task<ActionResult<LoginResponse>> Login(LoginRequest request)
     {
-        try
+        if (!ModelState.IsValid)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
+            return BadRequest(ModelState);
+        }
 
-            var response = await _authService.LoginAsync(request);
-            return Ok(response);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            _logger.LogWarning($"Login failed: {ex.Message}");
-            return Unauthorized(new { message = ex.Message });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError($"Login error: {ex.Message}");
-            return StatusCode(500, new { message = "An error occurred during login" });
-        }
+        var response = await _authService.LoginAsync(request);
+        return Ok(response);
     }
 
     /// <summary>
-    /// Register new customer user
+    /// Register a new customer user (Self-registration)
     /// </summary>
-    /// <param name="request">Registration data</param>
-    /// <returns>JWT token and user info</returns>
     [HttpPost("register")]
     public async Task<ActionResult<LoginResponse>> Register(RegisterRequest request)
     {
-        try
+        if (!ModelState.IsValid)
         {
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
+            return BadRequest(ModelState);
+        }
 
-            var response = await _authService.RegisterAsync(request);
-            return Ok(response);
-        }
-        catch (InvalidOperationException ex)
+        var response = await _authService.RegisterAsync(request);
+        return Ok(response);
+    }
+
+    /// <summary>
+    /// Register a new staff member (Admin only)
+    /// </summary>
+    [Authorize(Roles = "Admin")]
+    [HttpPost("register-staff")]
+    public async Task<ActionResult<LoginResponse>> RegisterStaff(StaffRegisterRequest request)
+    {
+        if (!ModelState.IsValid)
         {
-            _logger.LogWarning($"Registration failed: {ex.Message}");
-            return BadRequest(new { message = ex.Message });
+            return BadRequest(ModelState);
         }
-        catch (Exception ex)
+
+        var response = await _authService.RegisterStaffAsync(request);
+        return Ok(response);
+    }
+
+    /// <summary>
+    /// Create a customer user profile (Staff only)
+    /// </summary>
+    [Authorize(Roles = "Staff,Admin")]
+    [HttpPost("register-customer-by-staff")]
+    public async Task<ActionResult<UserDto>> CreateCustomerByStaff(RegisterRequest request)
+    {
+        if (!ModelState.IsValid)
         {
-            _logger.LogError($"Registration error: {ex.Message}");
-            return StatusCode(500, new { message = "An error occurred during registration" });
+            return BadRequest(ModelState);
         }
+
+        var response = await _authService.CreateCustomerByStaffAsync(request);
+        return Ok(response);
     }
 }
-
