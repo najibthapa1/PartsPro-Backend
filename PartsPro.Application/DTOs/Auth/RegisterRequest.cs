@@ -21,4 +21,20 @@ public class RegisterRequest
 
     [Required(ErrorMessage = "Address is required")]
     public string Address { get; set; } = string.Empty;
+
+    // Vehicle details
+    [Required(ErrorMessage = "Vehicle plate number is required")]
+    [MaxLength(20)]
+    public string PlateNumber { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "Vehicle model is required")]
+    [MaxLength(100)]
+    public string VehicleModel { get; set; } = string.Empty;
+
+    [MaxLength(100)]
+    public string? VehicleMake { get; set; }
+
+    public int VehicleYear { get; set; }
 }
+
+
