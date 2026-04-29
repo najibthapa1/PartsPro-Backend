@@ -23,12 +23,16 @@ public static class DependencyInjection
         services.AddScoped<ICustomerRepository, CustomerRepository>();
         services.AddScoped<IStaffRepository, StaffRepository>();
         services.AddScoped<IVendorRepository, VendorRepository>();
+        services.AddScoped<ISaleRepository, SaleRepository>();
+        services.AddScoped<IPartRepository, PartRepository>();
+        services.AddScoped<IPurchaseInvoiceRepository, PurchaseInvoiceRepository>();
         services.AddScoped<IVehicleRepository, VehicleRepository>();
         services.AddScoped<IReportRepository, ReportRepository>();
 
         // Services
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IVendorService, VendorService>();
+        services.AddScoped<ISaleService, SaleService>();
         services.AddScoped<IReportService, ReportService>();
 
         return services;
