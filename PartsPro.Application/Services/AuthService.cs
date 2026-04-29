@@ -23,19 +23,22 @@ public class AuthService : IAuthService
     private readonly ILogger<AuthService> _logger;
     private readonly ICustomerRepository _customerRepository;
     private readonly IStaffRepository _staffRepository;
+    private readonly IVehicleRepository _vehicleRepository;
 
     public AuthService(
         UserManager<ApplicationUser> userManager,
         IConfiguration configuration,
         ILogger<AuthService> logger,
         ICustomerRepository customerRepository,
-        IStaffRepository staffRepository)
+        IStaffRepository staffRepository,
+        IVehicleRepository vehicleRepository)
     {
         _userManager = userManager;
         _configuration = configuration;
         _logger = logger;
         _customerRepository = customerRepository;
         _staffRepository = staffRepository;
+        _vehicleRepository = vehicleRepository;
     }
 
     /// <summary>
@@ -101,6 +104,7 @@ public class AuthService : IAuthService
             Email = request.Email,
             UserName = request.Email,
             FullName = request.FullName,
+            PhoneNumber = request.Phone,  // ← Save PhoneNumber
             IsActive = true
         };
 
@@ -114,6 +118,7 @@ public class AuthService : IAuthService
 
         await _userManager.AddToRoleAsync(user, "Customer");
 
+        // Create Customer record
         var customer = new Customer
         {
             UserId = user.Id,
@@ -121,6 +126,20 @@ public class AuthService : IAuthService
         };
         _customerRepository.Create(customer);
         await _customerRepository.SaveChangesAsync();
+
+        // Create Vehicle record
+        if (!string.IsNullOrEmpty(request.PlateNumber) && !string.IsNullOrEmpty(request.VehicleModel))
+        {
+            var vehicle = new Vehicle
+            {
+                CustomerId = customer.Id,
+                PlateNumber = request.PlateNumber,
+                Model = request.VehicleModel,
+                Year = request.VehicleYear
+            };
+            _vehicleRepository.Create(vehicle);
+            await _vehicleRepository.SaveChangesAsync();
+        }
 
         var token = await GenerateTokenAsync(user);
 
