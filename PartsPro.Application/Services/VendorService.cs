@@ -38,6 +38,23 @@ public class VendorService : IVendorService
     }
 
     /// <summary>
+    /// Retrieve a single vendor by Name
+    /// </summary>
+    public async Task<VendorResponse?> GetVendorByNameAsync(string name)
+    {
+        var vendor = await _vendorRepository.FindAll(trackChanges: false)
+            .FirstOrDefaultAsync(v => v.Name.ToLower() == name.ToLower());
+
+        if (vendor == null)
+        {
+            _logger.LogWarning($"Vendor with Name {name} not found");
+            throw new NotFoundException($"Vendor with Name {name} not found");
+        }
+
+        return MapToResponse(vendor);
+    }
+
+    /// <summary>
     /// Get paginated list of all vendors
     /// </summary>
     public async Task<IEnumerable<VendorResponse>> GetAllVendorsAsync(int pageNumber = 1, int pageSize = 10)
