@@ -32,7 +32,7 @@ public class PurchaseInvoiceService : IPurchaseInvoiceService
         if (request.Items == null || !request.Items.Any())
         {
             _logger.LogWarning("Purchase invoice creation failed. No purchase items were provided.");
-            throw new InvalidOperationException("At least one purchase item is required.");
+            throw new BadRequestException("At least one purchase item is required.");
         }
 
         var vendor = await _vendorRepository.GetByIdAsync(request.VendorId);
@@ -55,7 +55,7 @@ public class PurchaseInvoiceService : IPurchaseInvoiceService
                     item.Quantity,
                     item.PartId);
 
-                throw new InvalidOperationException("Quantity must be greater than zero.");
+                throw new BadRequestException("Quantity must be greater than zero.");
             }
 
             if (item.UnitCost <= 0)
@@ -65,7 +65,7 @@ public class PurchaseInvoiceService : IPurchaseInvoiceService
                     item.UnitCost,
                     item.PartId);
 
-                throw new InvalidOperationException("Unit cost must be greater than zero.");
+                throw new BadRequestException("Unit cost must be greater than zero.");
             }
 
             var part = await _partRepository.GetByIdAsync(item.PartId);

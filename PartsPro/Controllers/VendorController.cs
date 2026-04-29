@@ -7,7 +7,7 @@ namespace PartsPro.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "Admin,Staff")]
+[Authorize(Roles = "Admin")]
 public class VendorController(IVendorService vendorService) : ControllerBase
 {
     private readonly IVendorService _vendorService = vendorService;
@@ -22,13 +22,20 @@ public class VendorController(IVendorService vendorService) : ControllerBase
         return Ok(vendors);
     }
 
-    /// <summary>
-    /// Get a specific vendor by their ID
-    /// </summary>
     [HttpGet("{id}")]
     public async Task<ActionResult<VendorResponse>> GetById(int id)
     {
         var vendor = await _vendorService.GetVendorByIdAsync(id);
+        return Ok(vendor);
+    }
+
+    /// <summary>
+    /// Get a specific vendor by their Name (Username)
+    /// </summary>
+    [HttpGet("search/{name}")]
+    public async Task<ActionResult<VendorResponse>> GetByName(string name)
+    {
+        var vendor = await _vendorService.GetVendorByNameAsync(name);
         return Ok(vendor);
     }
 
