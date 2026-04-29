@@ -31,7 +31,7 @@ public class SaleService : ISaleService
         if (request.Items == null || !request.Items.Any())
         {
             _logger.LogWarning("Sale creation failed. No sale items were provided.");
-            throw new InvalidOperationException("At least one sale item is required.");
+            throw new BadRequestException("At least one sale item is required.");
         }
 
         var customer = await _customerRepository.GetByIdAsync(request.CustomerId);
@@ -54,7 +54,7 @@ public class SaleService : ISaleService
                     item.Quantity,
                     item.PartId);
 
-                throw new InvalidOperationException("Quantity must be greater than zero.");
+                throw new BadRequestException("Quantity must be greater than zero.");
             }
 
             var part = await _partRepository.GetByIdAsync(item.PartId);
@@ -73,7 +73,7 @@ public class SaleService : ISaleService
                     part.Stock,
                     item.Quantity);
 
-                throw new InvalidOperationException(
+                throw new BadRequestException(
                     $"Insufficient stock for part '{part.Name}'. Available stock: {part.Stock}.");
             }
 
