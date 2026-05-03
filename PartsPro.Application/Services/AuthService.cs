@@ -122,7 +122,8 @@ public class AuthService : IAuthService
         var customer = new Customer
         {
             UserId = user.Id,
-            Address = request.Address
+            Address = request.Address,
+            FullName = request.FullName
         };
         _customerRepository.Create(customer);
         await _customerRepository.SaveChangesAsync();
@@ -250,7 +251,8 @@ public class AuthService : IAuthService
         var customer = new Customer
         {
             UserId = user.Id,
-            Address = request.Address
+            Address = request.Address,
+            FullName = request.FullName
         };
         _customerRepository.Create(customer);
         await _customerRepository.SaveChangesAsync();
@@ -265,6 +267,19 @@ public class AuthService : IAuthService
             Role = "Customer",
             IsActive = user.IsActive
         };
+        
+        if (!string.IsNullOrEmpty(request.PlateNumber))
+        {
+            var vehicle = new Vehicle
+            {
+                CustomerId = customer.Id,
+                PlateNumber = request.PlateNumber,
+                Model = request.VehicleModel,
+                Year = request.VehicleYear
+            };
+            _vehicleRepository.Create(vehicle);
+            await _vehicleRepository.SaveChangesAsync();
+        }
     }
 
     /// <summary>
