@@ -97,7 +97,7 @@ public class ReportRepository(AppDbContext context)
     /// <summary>
     /// Get top selling parts
     /// </summary>
-    public async Task<List<(int PartId, string PartName, int PartNumber, int QuantitySold, decimal Revenue)>> GetTopSellingPartsAsync(int limit = 10)
+    public async Task<List<(int PartId, string PartName, string PartNumber, int QuantitySold, decimal Revenue)>> GetTopSellingPartsAsync(int limit = 10)
     {
         var topParts = await context.SaleItems
             .Include(si => si.Part)
@@ -116,7 +116,7 @@ public class ReportRepository(AppDbContext context)
             .ToListAsync();
 
         return topParts
-            .Select(x => (x.PartId, x.PartName, int.Parse(x.PartNumberStr), x.QuantitySold, x.Revenue))
+            .Select(x => (x.PartId, x.PartName, x.PartNumberStr, x.QuantitySold, x.Revenue))
             .ToList();
     }
 
@@ -176,5 +176,8 @@ public class ReportRepository(AppDbContext context)
             .AsNoTracking()
             .CountAsync();
     }
+    
+    public async Task<int> GetTotalCustomersCountAsync()
+        => await context.Customers.AsNoTracking().CountAsync();
 }
 

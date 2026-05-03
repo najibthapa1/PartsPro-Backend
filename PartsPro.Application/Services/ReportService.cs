@@ -59,7 +59,7 @@ public class ReportService : IReportService
 
         // Get customer metrics
         var activeCustomers = await _reportRepository.GetActiveCustomersCountAsync(startDate, endDate);
-        var totalCustomers = await _reportRepository.FindAllAsync(trackChanges: false);
+        var totalCustomersCount = await _reportRepository.GetTotalCustomersCountAsync();
         var averageOrderValue = totalSalesCount > 0 ? totalSalesRevenue / totalSalesCount : 0;
 
         // Get vendor metrics
@@ -86,7 +86,7 @@ public class ReportService : IReportService
             NetProfit = netProfit,
             CostOfGoodsSold = costOfGoodsSold,
             GrossProfitMargin = grossProfitMargin,
-            TotalCustomers = totalCustomers.Count,
+            TotalCustomers = totalCustomersCount,
             ActiveCustomers = activeCustomers,
             AverageOrderValue = averageOrderValue,
             TotalVendors = totalVendors,

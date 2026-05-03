@@ -71,4 +71,11 @@ public class PartController(IPartService partService) : ControllerBase
         await _partService.DeletePartAsync(id);
         return Ok();
     }
+    
+    [HttpGet("search")]
+    public async Task<ActionResult<IEnumerable<PartResponse>>> Search([FromQuery] string q)
+    {
+        var parts = await _partService.SearchPartsAsync(q);
+        return Ok(parts);
+    }
 }

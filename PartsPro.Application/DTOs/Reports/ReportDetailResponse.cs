@@ -32,7 +32,7 @@ public class TopSellingPartResponse
 {
     public int PartId { get; set; }
     public string PartName { get; set; } = string.Empty;
-    public int PartNumber { get; set; }
+    public string PartNumber { get; set; } = string.Empty;
     public int TotalQuantitySold { get; set; }
     public decimal TotalRevenue { get; set; }
 }

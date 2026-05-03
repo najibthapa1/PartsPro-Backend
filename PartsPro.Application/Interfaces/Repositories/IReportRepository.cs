@@ -32,7 +32,7 @@ public interface IReportRepository : IRepositoryBase<Sale>
     /// <summary>
     /// Get top selling parts
     /// </summary>
-    Task<List<(int PartId, string PartName, int PartNumber, int QuantitySold, decimal Revenue)>> GetTopSellingPartsAsync(int limit = 10);
+    Task<List<(int PartId, string PartName, string PartNumber, int QuantitySold, decimal Revenue)>> GetTopSellingPartsAsync(int limit = 10);
 
     /// <summary>
     /// Get daily sales data
@@ -53,5 +53,8 @@ public interface IReportRepository : IRepositoryBase<Sale>
     /// Get total number of vendors
     /// </summary>
     Task<int> GetTotalVendorsCountAsync();
+    
+    Task<int> GetTotalCustomersCountAsync();
+
 }
 

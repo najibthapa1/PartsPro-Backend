@@ -9,4 +9,6 @@ public interface IPartService
     Task<IEnumerable<PartResponse>> GetAllPartsAsync(int pageNumber, int pageSize);
     Task UpdatePartAsync(int id, CreatePartRequest request);
     Task DeletePartAsync(int id);
+    Task<IEnumerable<PartResponse>> SearchPartsAsync(string query);
+
 }

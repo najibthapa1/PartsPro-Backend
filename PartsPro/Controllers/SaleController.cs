@@ -37,4 +37,11 @@ public class SaleController : ControllerBase
         var sales = await _saleService.GetSalesByCustomerIdAsync(customerId);
         return Ok(sales);
     }
+    
+    [HttpGet]
+    public async Task<IActionResult> GetAll()
+    {
+        var sales = await _saleService.GetAllSalesAsync();
+        return Ok(sales);
+    }
 }

@@ -144,4 +144,13 @@ public class PartService : IPartService
             CreatedAt = part.CreatedAt
         };
     }
+    public async Task<IEnumerable<PartResponse>> SearchPartsAsync(string query)
+    {
+        var parts = await _partRepository.FindAll(trackChanges: false)
+            .Include(p => p.Vendor)
+            .Where(p => p.Name.Contains(query) || p.PartNumber.Contains(query))
+            .Take(20)
+            .ToListAsync();
+        return parts.Select(MapToResponse);
+    }
 }
