@@ -18,7 +18,7 @@ public class StaffController : ControllerBase
     }
 
     /// <summary>
-    /// Retrieve paginated list of staff members
+    /// Grabs a list of all staff members. We use pagination so we don't load too many at once!
     /// </summary>
     [HttpGet]
     public async Task<ActionResult<IEnumerable<StaffResponse>>> GetAll(int pageNumber = 1, int pageSize = 10)
@@ -28,7 +28,7 @@ public class StaffController : ControllerBase
     }
 
     /// <summary>
-    /// Get a specific staff member by ID
+    /// Fetches the details of a single staff member using their unique ID.
     /// </summary>
     [HttpGet("{id}")]
     public async Task<ActionResult<StaffResponse>> GetById(int id)
@@ -38,7 +38,7 @@ public class StaffController : ControllerBase
     }
 
     /// <summary>
-    /// Update existing staff information
+    /// Updates a staff member's information (like changing their department or name).
     /// </summary>
     [HttpPut("update/{id}")]
     public async Task<IActionResult> Update(int id, UpdateStaffRequest request)
@@ -53,7 +53,7 @@ public class StaffController : ControllerBase
     }
 
     /// <summary>
-    /// Soft delete a staff member
+    /// Deactivates a staff member's account. We use a soft delete here so we don't lose their past data.
     /// </summary>
     [HttpDelete("delete/{id}")]
     public async Task<IActionResult> Delete(int id)

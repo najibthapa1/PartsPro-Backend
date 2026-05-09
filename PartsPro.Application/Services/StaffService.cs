@@ -78,10 +78,10 @@ public class StaffService : IStaffService
         if (staff == null)
             throw new NotFoundException($"Staff with ID {id} not found.");
 
-        // Update Staff properties
+        // Update the staff-specific fields (like their department)
         staff.Department = request.Department;
 
-        // Update User properties
+        // Now we need to update the core identity fields on the user account
         if (staff.User != null)
         {
             staff.User.FullName = request.FullName;
@@ -125,8 +125,9 @@ public class StaffService : IStaffService
             }
         }
 
+        // We do a soft delete here to make sure we keep their historical records intact
         await _staffRepository.SaveChangesAsync();
         
-        _logger.LogInformation($"Staff {id} deactivated (soft deleted).");
+        _logger.LogInformation($"Successfully deactivated staff account {id}.");
     }
 }
