@@ -98,6 +98,17 @@ public class ReportService : IReportService
     }
 
     /// <summary>
+    /// Get financial report for a full year
+    /// </summary>
+    public async Task<FinancialReportResponse> GetYearlyFinancialReportAsync(int year)
+    {
+        var startDate = new DateTime(year, 1, 1);
+        var endDate = startDate.AddYears(1).AddTicks(-1);
+
+        return await GetFinancialReportAsync(startDate, endDate);
+    }
+
+    /// <summary>
     /// Get monthly sales summary for the current year
     /// </summary>
     public async Task<IEnumerable<MonthlySalesResponse>> GetMonthlySalesReportAsync(int year)
@@ -154,8 +165,8 @@ public class ReportService : IReportService
                 Year = x.Year,
                 TotalCost = x.Cost,
                 PurchaseCount = x.Count,
-                PaidAmount = 0, // Will need additional data to calculate
-                UnpaidAmount = 0 // Will need additional data to calculate
+                PaidAmount = x.PaidAmount,
+                UnpaidAmount = x.UnpaidAmount
             })
             .ToList();
 

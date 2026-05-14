@@ -51,6 +51,28 @@ public class ReportController(IReportService reportService) : ControllerBase
     }
 
     /// <summary>
+    /// Get yearly financial summary
+    /// </summary>
+    /// <param name="year">Year for the report</param>
+    [HttpGet("financial/yearly")]
+    public async Task<ActionResult<FinancialReportResponse>> GetYearlyFinancialReport(
+        [FromQuery] int year = 0)
+    {
+        if (year == 0)
+        {
+            year = DateTime.UtcNow.Year;
+        }
+
+        if (year < 2000 || year > DateTime.UtcNow.Year)
+        {
+            return BadRequest("Invalid year provided");
+        }
+
+        var report = await _reportService.GetYearlyFinancialReportAsync(year);
+        return Ok(report);
+    }
+
+    /// <summary>
     /// Get monthly sales summary for a specific year
     /// </summary>
     /// <param name="year">Year for the report</param>

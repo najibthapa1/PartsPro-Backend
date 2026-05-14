@@ -10,6 +10,11 @@ public interface IReportService
     Task<FinancialReportResponse> GetFinancialReportAsync(DateTime startDate, DateTime endDate);
 
     /// <summary>
+    /// Get financial report for a full year
+    /// </summary>
+    Task<FinancialReportResponse> GetYearlyFinancialReportAsync(int year);
+
+    /// <summary>
     /// Get monthly sales summary for the current year
     /// </summary>
     Task<IEnumerable<MonthlySalesResponse>> GetMonthlySalesReportAsync(int year);

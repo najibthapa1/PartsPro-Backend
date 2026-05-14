@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using PartsPro.Application.Interfaces.Repositories;
 using PartsPro.Domain.Entities;
+using PartsPro.Domain.Enums;
 using PartsPro.Infrastructure.Data;
 
 namespace PartsPro.Infrastructure.Repositories;
@@ -79,7 +80,7 @@ public class ReportRepository : RepositoryBase<Sale>, IReportRepository
     /// <summary>
     /// Get purchases grouped by month
     /// </summary>
-    public async Task<List<(int Month, int Year, decimal Cost, int Count)>> GetMonthlyPurchasesAsync()
+    public async Task<List<(int Month, int Year, decimal Cost, int Count, decimal PaidAmount, decimal UnpaidAmount)>> GetMonthlyPurchasesAsync()
     {
         var monthlyPurchases = await _context.PurchaseInvoices
             .AsNoTracking()
@@ -89,14 +90,16 @@ public class ReportRepository : RepositoryBase<Sale>, IReportRepository
                 g.Key.Month,
                 g.Key.Year,
                 Cost = g.Sum(pi => pi.TotalCost),
-                Count = g.Count()
+                Count = g.Count(),
+                PaidAmount = g.Sum(pi => pi.Status == InvoiceStatus.Paid ? pi.TotalCost : 0),
+                UnpaidAmount = g.Sum(pi => pi.Status == InvoiceStatus.Paid ? 0 : pi.TotalCost)
             })
             .OrderByDescending(x => x.Year)
             .ThenByDescending(x => x.Month)
             .ToListAsync();
 
         return monthlyPurchases
-            .Select(x => (x.Month, x.Year, x.Cost, x.Count))
+            .Select(x => (x.Month, x.Year, x.Cost, x.Count, x.PaidAmount, x.UnpaidAmount))
             .ToList();
     }
 
@@ -122,7 +125,7 @@ public class ReportRepository : RepositoryBase<Sale>, IReportRepository
             .ToListAsync();
 
         return topParts
-            .Select(x => (x.PartId, x.PartName, x.PartNumberStr, x.QuantitySold, x.Revenue))
+            .Select(x => (x.PartId, x.PartName, PartNumber: x.PartNumberStr, x.QuantitySold, x.Revenue))
             .ToList();
     }
 
