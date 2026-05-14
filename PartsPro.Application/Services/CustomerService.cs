@@ -1,191 +1,298 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using PartsPro.Application.DTOs.Customers;
+using PartsPro.Application.Exceptions;
+using PartsPro.Application.Interfaces.Repositories;
+using PartsPro.Application.Interfaces.Services;
 using PartsPro.Domain.Entities;
-using PartsPro.DTOs;
-using PartsPro.DTOs.CustomerDTOs;
-using PartsPro.Models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 
-namespace PartsPro.Services
+namespace PartsPro.Application.Services;
+
+public class CustomerService : ICustomerService
 {
-    public interface ICustomerService
+    private readonly ICustomerRepository _customerRepository;
+    private readonly IVehicleRepository _vehicleRepository;
+    private readonly ISaleRepository _saleRepository;
+    private readonly IRepositoryBase<Appointment> _appointmentRepository;
+    private readonly IRepositoryBase<PartRequest> _partRequestRepository;
+    private readonly IRepositoryBase<Review> _reviewRepository;
+    private readonly IRepositoryBase<CreditRecord> _creditRecordRepository;
+    private readonly UserManager<ApplicationUser> _userManager;
+    private readonly ILogger<CustomerService> _logger;
+
+    public CustomerService(
+        ICustomerRepository customerRepository,
+        IVehicleRepository vehicleRepository,
+        ISaleRepository saleRepository,
+        IRepositoryBase<Appointment> appointmentRepository,
+        IRepositoryBase<PartRequest> partRequestRepository,
+        IRepositoryBase<Review> reviewRepository,
+        IRepositoryBase<CreditRecord> creditRecordRepository,
+        UserManager<ApplicationUser> userManager,
+        ILogger<CustomerService> logger)
     {
-        bool Register(RegisterDto registerDto);
-        ProfileDto GetProfile(int customerId);
-        bool UpdateProfile(int customerId, UpdateProfileDto updateDto);
-        CustomerHistoryDto GetCustomerHistory(int customerId);
-        bool AddVehicle(int customerId, VehicleDto vehicleDto);
-        List<VehicleDto> GetCustomerVehicles(int customerId);
+        _customerRepository = customerRepository;
+        _vehicleRepository = vehicleRepository;
+        _saleRepository = saleRepository;
+        _appointmentRepository = appointmentRepository;
+        _partRequestRepository = partRequestRepository;
+        _reviewRepository = reviewRepository;
+        _creditRecordRepository = creditRecordRepository;
+        _userManager = userManager;
+        _logger = logger;
     }
 
-    public class CustomerService : ICustomerService
+    public async Task<IEnumerable<CustomerProfileResponse>> GetAllCustomersAsync(int pageNumber = 1, int pageSize = 10)
     {
-        private readonly ApplicationDbContext _context;
+        var customers = await _customerRepository
+            .FindAll(trackChanges: false)
+            .Include(c => c.User)
+            .Include(c => c.Vehicles)
+            .Include(c => c.Sales)
+            .OrderByDescending(c => c.CreatedAt)
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
 
-        public CustomerService(ApplicationDbContext context)
+        return customers.Select(customer =>
         {
-            _context = context;
-        }
+            var totalSpent = customer.Sales.Sum(s => s.FinalAmount);
 
-        // F12: Customer Self-Register
-        public bool Register(RegisterDto registerDto)
-        {
-            try
-            {
-                // Check if email already exists
-                if (_context.Customers.Any(c => c.Email == registerDto.Email))
-                    throw new Exception("Email already registered");
-
-                var customer = new Customer
-                {
-                    FullName = registerDto.FullName,
-                    Email = registerDto.Email,
-                    PhoneNumber = registerDto.PhoneNumber,
-                    Address = registerDto.Address,
-                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(registerDto.Password),
-                    RegistrationDate = DateTime.UtcNow,
-                    IsActive = true,
-                    TotalSpent = 0
-                };
-
-                _context.Customers.Add(customer);
-                _context.SaveChanges();
-                return true;
-            }
-            catch (Exception ex)
-            {
-                // Log error
-                return false;
-            }
-        }
-
-        // F12: Get Customer Profile
-        public ProfileDto GetProfile(int customerId)
-        {
-            var customer = _context.Customers
-                .Include(c => c.PurchaseHistories)
-                .Include(c => c.ServiceHistories)
-                .FirstOrDefault(c => c.Id == customerId);
-
-            if (customer == null)
-                throw new Exception("Customer not found");
-
-            return new ProfileDto
+            return new CustomerProfileResponse
             {
                 Id = customer.Id,
+                UserId = customer.UserId,
                 FullName = customer.FullName,
-                Email = customer.Email,
-                PhoneNumber = customer.PhoneNumber,
+                Email = customer.User?.Email ?? string.Empty,
+                PhoneNumber = customer.User?.PhoneNumber ?? string.Empty,
                 Address = customer.Address,
-                TotalSpent = customer.TotalSpent,
-                TotalPurchases = customer.PurchaseHistories?.Count ?? 0,
-                TotalServices = customer.ServiceHistories?.Count ?? 0
+                CreatedAt = customer.CreatedAt,
+                IsActive = customer.User?.IsActive ?? false,
+                VehicleCount = customer.Vehicles.Count,
+                SaleCount = customer.Sales.Count,
+                TotalSpent = totalSpent,
+                LoyaltyPoints = CalculateLoyaltyPoints(totalSpent)
             };
-        }
-
-        // F12: Update Customer Profile
-        public bool UpdateProfile(int customerId, UpdateProfileDto updateDto)
-        {
-            var customer = _context.Customers.Find(customerId);
-            if (customer == null)
-                throw new Exception("Customer not found");
-
-            customer.FullName = updateDto.FullName;
-            customer.PhoneNumber = updateDto.PhoneNumber;
-            customer.Address = updateDto.Address;
-
-            _context.SaveChanges();
-            return true;
-        }
-
-        // F14: Get Complete Customer History
-        public CustomerHistoryDto GetCustomerHistory(int customerId)
-        {
-            var customer = _context.Customers
-                .Include(c => c.Vehicles)
-                .Include(c => c.PurchaseHistories)
-                .Include(c => c.ServiceHistories)
-                .FirstOrDefault(c => c.Id == customerId);
-
-            if (customer == null)
-                throw new Exception("Customer not found");
-
-            // Calculate loyalty points (10 points per 100 spent)
-            int loyaltyPoints = (int)(customer.TotalSpent / 100) * 10;
-
-            return new CustomerHistoryDto
-            {
-                Profile = GetProfile(customerId),
-                Vehicles = customer.Vehicles?.Select(v => new VehicleDto
-                {
-                    Id = v.Id,
-                    VehicleNumber = v.VehicleNumber,
-                    Make = v.Make,
-                    Model = v.Model,
-                    Year = v.Year,
-                    Color = v.Color
-                }).ToList() ?? new List<VehicleDto>(),
-
-                PurchaseHistory = customer.PurchaseHistories?
-                    .OrderByDescending(p => p.PurchaseDate)
-                    .Select(p => new PurchaseHistoryDto
-                    {
-                        Id = p.Id,
-                        PartName = p.PartName,
-                        Quantity = p.Quantity,
-                        UnitPrice = p.UnitPrice,
-                        TotalPrice = p.TotalPrice,
-                        PurchaseDate = p.PurchaseDate
-                    }).ToList() ?? new List<PurchaseHistoryDto>(),
-
-                ServiceHistory = customer.ServiceHistories?
-                    .OrderByDescending(s => s.ServiceDate)
-                    .Select(s => new ServiceHistoryDto
-                    {
-                        Id = s.Id,
-                        VehicleNumber = s.Vehicle.VehicleNumber,
-                        ServiceType = s.ServiceType,
-                        ServiceDate = s.ServiceDate,
-                        Cost = s.Cost,
-                        Description = s.Description
-                    }).ToList() ?? new List<ServiceHistoryDto>(),
-
-                TotalSpent = customer.TotalSpent,
-                LoyaltyPoints = loyaltyPoints
-            };
-        }
-
-        public bool AddVehicle(int customerId, VehicleDto vehicleDto)
-        {
-            var vehicle = new Vehicle
-            {
-                VehicleNumber = vehicleDto.VehicleNumber,
-                Make = vehicleDto.Make,
-                Model = vehicleDto.Model,
-                Year = vehicleDto.Year,
-                Color = vehicleDto.Color,
-                CustomerId = customerId
-            };
-
-            _context.Vehicles.Add(vehicle);
-            _context.SaveChanges();
-            return true;
-        }
-
-        public List<VehicleDto> GetCustomerVehicles(int customerId)
-        {
-            return _context.Vehicles
-                .Where(v => v.CustomerId == customerId)
-                .Select(v => new VehicleDto
-                {
-                    Id = v.Id,
-                    VehicleNumber = v.VehicleNumber,
-                    Make = v.Make,
-                    Model = v.Model,
-                    Year = v.Year,
-                    Color = v.Color
-                }).ToList();
-        }
+        });
     }
+
+    public async Task<CustomerProfileResponse> GetProfileAsync(int customerId)
+    {
+        var customer = await _customerRepository
+            .FindByCondition(c => c.Id == customerId, trackChanges: false)
+            .Include(c => c.User)
+            .Include(c => c.Vehicles)
+            .Include(c => c.Sales)
+            .FirstOrDefaultAsync();
+
+        if (customer == null)
+            throw new NotFoundException($"Customer with ID {customerId} not found.");
+
+        var totalSpent = customer.Sales.Sum(s => s.FinalAmount);
+
+        return new CustomerProfileResponse
+        {
+            Id = customer.Id,
+            UserId = customer.UserId,
+            FullName = customer.FullName,
+            Email = customer.User?.Email ?? string.Empty,
+            PhoneNumber = customer.User?.PhoneNumber ?? string.Empty,
+            Address = customer.Address,
+            CreatedAt = customer.CreatedAt,
+            IsActive = customer.User?.IsActive ?? false,
+            VehicleCount = customer.Vehicles.Count,
+            SaleCount = customer.Sales.Count,
+            TotalSpent = totalSpent,
+            LoyaltyPoints = CalculateLoyaltyPoints(totalSpent)
+        };
+    }
+
+    public async Task UpdateProfileAsync(int customerId, UpdateCustomerRequest request)
+    {
+        var customer = await _customerRepository
+            .FindByCondition(c => c.Id == customerId, trackChanges: true)
+            .Include(c => c.User)
+            .FirstOrDefaultAsync();
+
+        if (customer == null)
+            throw new NotFoundException($"Customer with ID {customerId} not found.");
+
+        customer.FullName = request.FullName;
+        customer.Address = request.Address;
+
+        if (customer.User != null)
+        {
+            customer.User.FullName = request.FullName;
+            customer.User.PhoneNumber = request.PhoneNumber;
+
+            var result = await _userManager.UpdateAsync(customer.User);
+            if (!result.Succeeded)
+            {
+                var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+                _logger.LogWarning($"Failed to update customer user details: {errors}");
+                throw new BadRequestException(errors);
+            }
+        }
+
+        _customerRepository.Update(customer);
+        await _customerRepository.SaveChangesAsync();
+
+        _logger.LogInformation($"Customer {customerId} updated successfully.");
+    }
+
+    public async Task AddVehicleAsync(int customerId, AddVehicleRequest request)
+    {
+        var customer = await _customerRepository.GetByIdAsync(customerId);
+        if (customer == null)
+            throw new NotFoundException($"Customer with ID {customerId} not found.");
+
+        var duplicate = await _vehicleRepository.GetByPlateNumberAsync(request.PlateNumber);
+        if (duplicate != null)
+            throw new ConflictException($"Vehicle with plate number {request.PlateNumber} already exists.");
+
+        var vehicle = new Vehicle
+        {
+            CustomerId = customerId,
+            PlateNumber = request.PlateNumber,
+            Model = request.Model,
+            Year = request.Year,
+            Notes = request.Notes
+        };
+
+        _vehicleRepository.Create(vehicle);
+        await _vehicleRepository.SaveChangesAsync();
+
+        _logger.LogInformation($"Vehicle {request.PlateNumber} added to customer {customerId}.");
+    }
+
+    public async Task<IEnumerable<CustomerVehicleResponse>> GetVehiclesAsync(int customerId)
+    {
+        var vehicles = await _vehicleRepository.GetByCustomerIdAsync(customerId);
+
+        return vehicles.Select(v => new CustomerVehicleResponse
+        {
+            Id = v.Id,
+            PlateNumber = v.PlateNumber,
+            Model = v.Model,
+            Year = v.Year,
+            Notes = v.Notes,
+            CreatedAt = v.CreatedAt
+        });
+    }
+
+    public async Task<CustomerHistoryResponse> GetCustomerHistoryAsync(int customerId)
+    {
+        var profile = await GetProfileAsync(customerId);
+
+        var vehicles = (await _vehicleRepository.GetByCustomerIdAsync(customerId))
+            .Select(v => new CustomerVehicleResponse
+            {
+                Id = v.Id,
+                PlateNumber = v.PlateNumber,
+                Model = v.Model,
+                Year = v.Year,
+                Notes = v.Notes,
+                CreatedAt = v.CreatedAt
+            })
+            .ToList();
+
+        var sales = (await _saleRepository.GetByCustomerIdAsync(customerId))
+            .OrderByDescending(s => s.CreatedAt)
+            .Select(s => new CustomerSaleResponse
+            {
+                Id = s.Id,
+                TotalAmount = s.TotalAmount,
+                DiscountAmount = s.DiscountAmount,
+                FinalAmount = s.FinalAmount,
+                CreatedAt = s.CreatedAt
+            })
+            .ToList();
+
+        var appointments = await _appointmentRepository
+            .FindByCondition(a => a.CustomerId == customerId, trackChanges: false)
+            .OrderByDescending(a => a.AppointmentDate)
+            .Select(a => new CustomerAppointmentResponse
+            {
+                Id = a.Id,
+                ServiceType = a.ServiceType,
+                AppointmentDate = a.AppointmentDate,
+                Status = a.Status.ToString(),
+                Notes = a.Notes,
+                CreatedAt = a.CreatedAt
+            })
+            .ToListAsync();
+
+        var partRequests = await _partRequestRepository
+            .FindByCondition(pr => pr.CustomerId == customerId, trackChanges: false)
+            .OrderByDescending(pr => pr.CreatedAt)
+            .Select(pr => new CustomerPartRequestResponse
+            {
+                Id = pr.Id,
+                PartName = pr.PartName,
+                Urgency = pr.Urgency.ToString(),
+                IsResolved = pr.IsResolved,
+                CreatedAt = pr.CreatedAt
+            })
+            .ToListAsync();
+
+        var reviews = await _reviewRepository
+            .FindByCondition(r => r.CustomerId == customerId, trackChanges: false)
+            .OrderByDescending(r => r.CreatedAt)
+            .Select(r => new CustomerReviewResponse
+            {
+                Id = r.Id,
+                Rating = r.Rating,
+                Comment = r.Comment,
+                CreatedAt = r.CreatedAt
+            })
+            .ToListAsync();
+
+        var creditRecords = await _creditRecordRepository
+            .FindByCondition(c => c.CustomerId == customerId, trackChanges: false)
+            .OrderByDescending(c => c.CreatedAt)
+            .Select(c => new CustomerCreditRecordResponse
+            {
+                Id = c.Id,
+                Amount = c.Amount,
+                Status = c.Status.ToString(),
+                CreatedAt = c.CreatedAt,
+                PaidAt = c.PaidAt
+            })
+            .ToListAsync();
+
+        var totalSpent = sales.Sum(s => s.FinalAmount);
+        var loyaltyPoints = CalculateLoyaltyPoints(totalSpent);
+        var creditBalance = creditRecords
+            .Where(c => c.Status.Equals("Unpaid", StringComparison.OrdinalIgnoreCase))
+            .Sum(c => c.Amount);
+
+        var activityDates = new List<DateTime> { profile.CreatedAt };
+        activityDates.AddRange(vehicles.Select(v => v.CreatedAt));
+        activityDates.AddRange(sales.Select(s => s.CreatedAt));
+        activityDates.AddRange(appointments.Select(a => a.CreatedAt));
+        activityDates.AddRange(partRequests.Select(p => p.CreatedAt));
+        activityDates.AddRange(reviews.Select(r => r.CreatedAt));
+        activityDates.AddRange(creditRecords.Select(c => c.CreatedAt));
+
+        var lastActivityDate = activityDates.Count > 0 ? activityDates.Max() : (DateTime?)null;
+
+        return new CustomerHistoryResponse
+        {
+            Profile = profile,
+            Vehicles = vehicles,
+            Sales = sales,
+            Appointments = appointments,
+            PartRequests = partRequests,
+            Reviews = reviews,
+            CreditRecords = creditRecords,
+            TotalSpent = totalSpent,
+            LoyaltyPoints = loyaltyPoints,
+            CreditBalance = creditBalance,
+            LastActivityDate = lastActivityDate
+        };
+    }
+
+    private static int CalculateLoyaltyPoints(decimal totalSpent)
+        => (int)(totalSpent / 100m) * 10;
 }

@@ -259,16 +259,7 @@ public class AuthService : IAuthService
 
         _logger.LogInformation($"Customer created by staff: {request.Email}");
 
-        return new UserDto
-        {
-            Id = user.Id,
-            Email = user.Email,
-            FullName = user.FullName,
-            Role = "Customer",
-            IsActive = user.IsActive
-        };
-        
-        if (!string.IsNullOrEmpty(request.PlateNumber))
+        if (!string.IsNullOrEmpty(request.PlateNumber) && !string.IsNullOrEmpty(request.VehicleModel))
         {
             var vehicle = new Vehicle
             {
@@ -277,9 +268,19 @@ public class AuthService : IAuthService
                 Model = request.VehicleModel,
                 Year = request.VehicleYear
             };
+
             _vehicleRepository.Create(vehicle);
             await _vehicleRepository.SaveChangesAsync();
         }
+
+        return new UserDto
+        {
+            Id = user.Id,
+            Email = user.Email,
+            FullName = user.FullName,
+            Role = "Customer",
+            IsActive = user.IsActive
+        };
     }
 
     /// <summary>

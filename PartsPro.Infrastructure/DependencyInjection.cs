@@ -20,6 +20,7 @@ public static class DependencyInjection
             options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")));
 
         // Repositories
+        services.AddScoped(typeof(IRepositoryBase<>), typeof(RepositoryBase<>));
         services.AddScoped<ICustomerRepository, CustomerRepository>();
         services.AddScoped<IStaffRepository, StaffRepository>();
         services.AddScoped<IVendorRepository, VendorRepository>();
@@ -31,6 +32,7 @@ public static class DependencyInjection
 
         // Services
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<ICustomerService, CustomerService>();
         services.AddScoped<IStaffService, StaffService>();
         services.AddScoped<IVendorService, VendorService>();
         services.AddScoped<ISaleService, SaleService>();
