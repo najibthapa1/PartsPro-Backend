@@ -1,127 +1,106 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using PartsPro.DTOs;
-using PartsPro.DTOs.CustomerDTOs;
-using PartsPro.Services;
+using PartsPro.Application.DTOs.Auth;
+using PartsPro.Application.DTOs.Customers;
+using PartsPro.Application.Interfaces.Services;
 
-namespace PartsPro.Controllers
+namespace PartsPro.Controllers;
+
+[Route("api/[controller]")]
+[ApiController]
+public class CustomerController : ControllerBase
 {
-    [Route("api/[controller]")]
-    [ApiController]
-    public class CustomerController : ControllerBase
+    private readonly ICustomerService _customerService;
+    private readonly IAuthService _authService;
+
+    public CustomerController(ICustomerService customerService, IAuthService authService)
     {
-        private readonly ICustomerService _customerService;
+        _customerService = customerService;
+        _authService = authService;
+    }
 
-        public CustomerController(ICustomerService customerService)
-        {
-            _customerService = customerService;
-        }
+    /// <summary>
+    /// Get a paginated list of customers.
+    /// </summary>
+    [Authorize(Roles = "Admin,Staff")]
+    [HttpGet]
+    public async Task<ActionResult<IEnumerable<CustomerProfileResponse>>> GetAll(int pageNumber = 1, int pageSize = 10)
+    {
+        var customers = await _customerService.GetAllCustomersAsync(pageNumber, pageSize);
+        return Ok(customers);
+    }
 
-        // F12: Customer Self-Register
-        [HttpPost("register")]
-        public IActionResult Register([FromBody] RegisterDto registerDto)
-        {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
+    /// <summary>
+    /// Customer self-registration. Kept here for compatibility, but registration is handled by auth service.
+    /// </summary>
+    [HttpPost("register")]
+    public async Task<ActionResult<LoginResponse>> Register([FromBody] RegisterRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
 
-            try
-            {
-                var result = _customerService.Register(registerDto);
-                if (result)
-                    return Ok(new { message = "Registration successful" });
+        var response = await _authService.RegisterAsync(request);
+        return Ok(response);
+    }
 
-                return BadRequest(new { message = "Registration failed" });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
-        }
+    /// <summary>
+    /// Get a customer profile summary.
+    /// </summary>
+    [Authorize]
+    [HttpGet("profile/{customerId}")]
+    public async Task<ActionResult<CustomerProfileResponse>> GetProfile(int customerId)
+    {
+        var profile = await _customerService.GetProfileAsync(customerId);
+        return Ok(profile);
+    }
 
-        // F12: Get Customer Profile
-        [Authorize]
-        [HttpGet("profile/{customerId}")]
-        public IActionResult GetProfile(int customerId)
-        {
-            try
-            {
-                var profile = _customerService.GetProfile(customerId);
-                return Ok(profile);
-            }
-            catch (Exception ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
-        }
+    /// <summary>
+    /// Update a customer profile.
+    /// </summary>
+    [Authorize]
+    [HttpPut("profile/{customerId}")]
+    public async Task<IActionResult> UpdateProfile(int customerId, [FromBody] UpdateCustomerRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
 
-        // F12: Update Customer Profile
-        [Authorize]
-        [HttpPut("profile/{customerId}")]
-        public IActionResult UpdateProfile(int customerId, [FromBody] UpdateProfileDto updateDto)
-        {
-            try
-            {
-                var result = _customerService.UpdateProfile(customerId, updateDto);
-                if (result)
-                    return Ok(new { message = "Profile updated successfully" });
+        await _customerService.UpdateProfileAsync(customerId, request);
+        return Ok(new { message = "Profile updated successfully" });
+    }
 
-                return BadRequest(new { message = "Update failed" });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
-        }
+    /// <summary>
+    /// Add a vehicle to the customer profile.
+    /// </summary>
+    [Authorize]
+    [HttpPost("{customerId}/vehicles")]
+    public async Task<IActionResult> AddVehicle(int customerId, [FromBody] AddVehicleRequest request)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
 
-        // F12: Add Vehicle to Customer Profile
-        [Authorize]
-        [HttpPost("{customerId}/vehicles")]
-        public IActionResult AddVehicle(int customerId, [FromBody] VehicleDto vehicleDto)
-        {
-            try
-            {
-                var result = _customerService.AddVehicle(customerId, vehicleDto);
-                if (result)
-                    return Ok(new { message = "Vehicle added successfully" });
+        await _customerService.AddVehicleAsync(customerId, request);
+        return Ok(new { message = "Vehicle added successfully" });
+    }
 
-                return BadRequest(new { message = "Failed to add vehicle" });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
-        }
+    /// <summary>
+    /// Get all vehicles for a customer.
+    /// </summary>
+    [Authorize]
+    [HttpGet("{customerId}/vehicles")]
+    public async Task<ActionResult<IEnumerable<CustomerVehicleResponse>>> GetVehicles(int customerId)
+    {
+        var vehicles = await _customerService.GetVehiclesAsync(customerId);
+        return Ok(vehicles);
+    }
 
-        // F12: Get Customer Vehicles
-        [Authorize]
-        [HttpGet("{customerId}/vehicles")]
-        public IActionResult GetVehicles(int customerId)
-        {
-            try
-            {
-                var vehicles = _customerService.GetCustomerVehicles(customerId);
-                return Ok(vehicles);
-            }
-            catch (Exception ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
-        }
-
-        // F14: Get Complete Customer History
-        [Authorize]
-        [HttpGet("{customerId}/history")]
-        public IActionResult GetCustomerHistory(int customerId)
-        {
-            try
-            {
-                var history = _customerService.GetCustomerHistory(customerId);
-                return Ok(history);
-            }
-            catch (Exception ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
-        }
+    /// <summary>
+    /// Get complete customer history.
+    /// </summary>
+    [Authorize]
+    [HttpGet("{customerId}/history")]
+    public async Task<ActionResult<CustomerHistoryResponse>> GetCustomerHistory(int customerId)
+    {
+        var history = await _customerService.GetCustomerHistoryAsync(customerId);
+        return Ok(history);
     }
 }

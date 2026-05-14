@@ -5,15 +5,21 @@ using PartsPro.Infrastructure.Data;
 
 namespace PartsPro.Infrastructure.Repositories;
 
-public class ReportRepository(AppDbContext context) 
-    : RepositoryBase<Sale>(context), IReportRepository
+public class ReportRepository : RepositoryBase<Sale>, IReportRepository
 {
+    private readonly AppDbContext _context;
+
+    public ReportRepository(AppDbContext context) : base(context)
+    {
+        _context = context;
+    }
+
     /// <summary>
     /// Get all sales within a date range
     /// </summary>
     public async Task<List<Sale>> GetSalesByDateRangeAsync(DateTime startDate, DateTime endDate)
     {
-        return await context.Sales
+        return await _context.Sales
             .Where(s => s.CreatedAt >= startDate && s.CreatedAt <= endDate)
             .Include(s => s.Items)
             .ThenInclude(si => si.Part)
@@ -26,7 +32,7 @@ public class ReportRepository(AppDbContext context)
     /// </summary>
     public async Task<List<PurchaseInvoice>> GetPurchasesByDateRangeAsync(DateTime startDate, DateTime endDate)
     {
-        return await context.PurchaseInvoices
+        return await _context.PurchaseInvoices
             .Where(pi => pi.PurchasedAt >= startDate && pi.PurchasedAt <= endDate)
             .Include(pi => pi.Items)
             .ThenInclude(pui => pui.Part)
@@ -39,7 +45,7 @@ public class ReportRepository(AppDbContext context)
     /// </summary>
     public async Task<List<Part>> GetAllPartsWithInventoryAsync()
     {
-        return await context.Parts
+        return await _context.Parts
             .Include(p => p.SaleItems)
             .Include(p => p.PurchaseItems)
             .AsNoTracking()
@@ -51,7 +57,7 @@ public class ReportRepository(AppDbContext context)
     /// </summary>
     public async Task<List<(int Month, int Year, decimal Revenue, int Count)>> GetMonthlySalesAsync()
     {
-        var monthlySales = await context.Sales
+        var monthlySales = await _context.Sales
             .AsNoTracking()
             .GroupBy(s => new { s.CreatedAt.Year, s.CreatedAt.Month })
             .Select(g => new
@@ -75,7 +81,7 @@ public class ReportRepository(AppDbContext context)
     /// </summary>
     public async Task<List<(int Month, int Year, decimal Cost, int Count)>> GetMonthlyPurchasesAsync()
     {
-        var monthlyPurchases = await context.PurchaseInvoices
+        var monthlyPurchases = await _context.PurchaseInvoices
             .AsNoTracking()
             .GroupBy(pi => new { pi.PurchasedAt.Year, pi.PurchasedAt.Month })
             .Select(g => new
@@ -99,7 +105,7 @@ public class ReportRepository(AppDbContext context)
     /// </summary>
     public async Task<List<(int PartId, string PartName, string PartNumber, int QuantitySold, decimal Revenue)>> GetTopSellingPartsAsync(int limit = 10)
     {
-        var topParts = await context.SaleItems
+        var topParts = await _context.SaleItems
             .Include(si => si.Part)
             .AsNoTracking()
             .GroupBy(si => new { si.PartId, si.Part.Name, si.Part.PartNumber })
@@ -125,7 +131,7 @@ public class ReportRepository(AppDbContext context)
     /// </summary>
     public async Task<List<(DateTime Date, decimal Revenue, int Count)>> GetDailySalesAsync(DateTime startDate, DateTime endDate)
     {
-        var dailySales = await context.Sales
+        var dailySales = await _context.Sales
             .Where(s => s.CreatedAt >= startDate && s.CreatedAt <= endDate)
             .AsNoTracking()
             .GroupBy(s => s.CreatedAt.Date)
@@ -148,7 +154,7 @@ public class ReportRepository(AppDbContext context)
     /// </summary>
     public async Task<List<Part>> GetLowStockPartsAsync()
     {
-        return await context.Parts
+        return await _context.Parts
             .Where(p => p.Stock < 10)
             .AsNoTracking()
             .ToListAsync();
@@ -159,7 +165,7 @@ public class ReportRepository(AppDbContext context)
     /// </summary>
     public async Task<int> GetActiveCustomersCountAsync(DateTime startDate, DateTime endDate)
     {
-        return await context.Sales
+        return await _context.Sales
             .Where(s => s.CreatedAt >= startDate && s.CreatedAt <= endDate)
             .AsNoTracking()
             .Select(s => s.CustomerId)
@@ -172,12 +178,12 @@ public class ReportRepository(AppDbContext context)
     /// </summary>
     public async Task<int> GetTotalVendorsCountAsync()
     {
-        return await context.Vendors
+        return await _context.Vendors
             .AsNoTracking()
             .CountAsync();
     }
     
     public async Task<int> GetTotalCustomersCountAsync()
-        => await context.Customers.AsNoTracking().CountAsync();
+        => await _context.Customers.AsNoTracking().CountAsync();
 }
 
