@@ -27,7 +27,7 @@ public interface IReportRepository : IRepositoryBase<Sale>
     /// <summary>
     /// Get purchases grouped by month
     /// </summary>
-    Task<List<(int Month, int Year, decimal Cost, int Count)>> GetMonthlyPurchasesAsync();
+    Task<List<(int Month, int Year, decimal Cost, int Count, decimal PaidAmount, decimal UnpaidAmount)>> GetMonthlyPurchasesAsync();
 
     /// <summary>
     /// Get top selling parts

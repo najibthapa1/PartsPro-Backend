@@ -1,11 +1,13 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using PartsPro.Infrastructure.BackgroundJobs;
 using PartsPro.Application.Interfaces.Services;
 using PartsPro.Application.Interfaces.Repositories;
 using PartsPro.Application.Services;
 using PartsPro.Infrastructure.Data;
 using PartsPro.Infrastructure.Repositories;
+using PartsPro.Domain.Entities;
 
 namespace PartsPro.Infrastructure;
 
@@ -29,6 +31,8 @@ public static class DependencyInjection
         services.AddScoped<IPurchaseInvoiceRepository, PurchaseInvoiceRepository>();
         services.AddScoped<IVehicleRepository, VehicleRepository>();
         services.AddScoped<IReportRepository, ReportRepository>();
+        services.AddScoped<IEmailRepository, EmailRepository>();
+        services.AddScoped<INotificationRepository, NotificationRepository>();
 
         // Services
         services.AddScoped<IAuthService, AuthService>();
@@ -39,6 +43,10 @@ public static class DependencyInjection
         services.AddScoped<IPartService, PartService>();
         services.AddScoped<IPurchaseInvoiceService, PurchaseInvoiceService>();
         services.AddScoped<IReportService, ReportService>();
+        services.AddScoped<INotificationService, NotificationService>();
+
+        // Background Services
+        services.AddHostedService<NotificationBackgroundService>();
 
         return services;
     }

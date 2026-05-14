@@ -2,7 +2,9 @@
 using Microsoft.AspNetCore.Mvc;
 using PartsPro.Application.DTOs.Auth;
 using PartsPro.Application.DTOs.Customers;
+using PartsPro.Application.Interfaces.Repositories;
 using PartsPro.Application.Interfaces.Services;
+using System.Security.Claims;
 
 namespace PartsPro.Controllers;
 
@@ -12,11 +14,13 @@ public class CustomerController : ControllerBase
 {
     private readonly ICustomerService _customerService;
     private readonly IAuthService _authService;
+    private readonly ICustomerRepository _customerRepository;
 
-    public CustomerController(ICustomerService customerService, IAuthService authService)
+    public CustomerController(ICustomerService customerService, IAuthService authService, ICustomerRepository customerRepository)
     {
         _customerService = customerService;
         _authService = authService;
+        _customerRepository = customerRepository;
     }
 
     /// <summary>
@@ -46,10 +50,13 @@ public class CustomerController : ControllerBase
     /// <summary>
     /// Get a customer profile summary.
     /// </summary>
-    [Authorize]
+    [Authorize(Roles = "Admin,Staff,Customer")]
     [HttpGet("profile/{customerId}")]
     public async Task<ActionResult<CustomerProfileResponse>> GetProfile(int customerId)
     {
+        if (!await CanAccessCustomerAsync(customerId))
+            return Forbid();
+
         var profile = await _customerService.GetProfileAsync(customerId);
         return Ok(profile);
     }
@@ -57,12 +64,15 @@ public class CustomerController : ControllerBase
     /// <summary>
     /// Update a customer profile.
     /// </summary>
-    [Authorize]
+    [Authorize(Roles = "Admin,Staff,Customer")]
     [HttpPut("profile/{customerId}")]
     public async Task<IActionResult> UpdateProfile(int customerId, [FromBody] UpdateCustomerRequest request)
     {
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
+
+        if (!await CanAccessCustomerAsync(customerId))
+            return Forbid();
 
         await _customerService.UpdateProfileAsync(customerId, request);
         return Ok(new { message = "Profile updated successfully" });
@@ -71,12 +81,15 @@ public class CustomerController : ControllerBase
     /// <summary>
     /// Add a vehicle to the customer profile.
     /// </summary>
-    [Authorize]
+    [Authorize(Roles = "Admin,Staff,Customer")]
     [HttpPost("{customerId}/vehicles")]
     public async Task<IActionResult> AddVehicle(int customerId, [FromBody] AddVehicleRequest request)
     {
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
+
+        if (!await CanAccessCustomerAsync(customerId))
+            return Forbid();
 
         await _customerService.AddVehicleAsync(customerId, request);
         return Ok(new { message = "Vehicle added successfully" });
@@ -85,10 +98,13 @@ public class CustomerController : ControllerBase
     /// <summary>
     /// Get all vehicles for a customer.
     /// </summary>
-    [Authorize]
+    [Authorize(Roles = "Admin,Staff,Customer")]
     [HttpGet("{customerId}/vehicles")]
     public async Task<ActionResult<IEnumerable<CustomerVehicleResponse>>> GetVehicles(int customerId)
     {
+        if (!await CanAccessCustomerAsync(customerId))
+            return Forbid();
+
         var vehicles = await _customerService.GetVehiclesAsync(customerId);
         return Ok(vehicles);
     }
@@ -96,11 +112,27 @@ public class CustomerController : ControllerBase
     /// <summary>
     /// Get complete customer history.
     /// </summary>
-    [Authorize]
+    [Authorize(Roles = "Admin,Staff,Customer")]
     [HttpGet("{customerId}/history")]
     public async Task<ActionResult<CustomerHistoryResponse>> GetCustomerHistory(int customerId)
     {
+        if (!await CanAccessCustomerAsync(customerId))
+            return Forbid();
+
         var history = await _customerService.GetCustomerHistoryAsync(customerId);
         return Ok(history);
+    }
+
+    private async Task<bool> CanAccessCustomerAsync(int customerId)
+    {
+        if (User.IsInRole("Admin") || User.IsInRole("Staff"))
+            return true;
+
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(userId))
+            return false;
+
+        var customer = await _customerRepository.GetByUserIdAsync(userId);
+        return customer?.Id == customerId;
     }
 }
