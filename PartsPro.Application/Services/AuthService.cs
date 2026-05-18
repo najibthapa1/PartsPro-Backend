@@ -14,7 +14,7 @@ using System.Text;
 namespace PartsPro.Application.Services;
 
 /// <summary>
-/// Service responsible for managing user authentication, registration, and JWT generation
+/// Handles everything related to logging in, signing up, and creating JWT tokens
 /// </summary>
 public class AuthService : IAuthService
 {
@@ -42,10 +42,8 @@ public class AuthService : IAuthService
     }
 
     /// <summary>
-    /// Authenticate user and generate JWT token
+    /// Checks the user's email and password, then hands back a JWT token if everything looks good
     /// </summary>
-    /// <param name="request">Login credentials</param>
-    /// <returns>Token and user data</returns>
     public async Task<LoginResponse> LoginAsync(LoginRequest request)
     {
         var user = await _userManager.FindByEmailAsync(request.Email);
@@ -86,10 +84,8 @@ public class AuthService : IAuthService
     }
 
     /// <summary>
-    /// Register a new customer via self-registration
+    /// Lets a customer sign up on their own through the public registration page
     /// </summary>
-    /// <param name="request">Registration data</param>
-    /// <returns>Token and user details</returns>
     public async Task<LoginResponse> RegisterAsync(RegisterRequest request)
     {
         var existingUser = await _userManager.FindByEmailAsync(request.Email);
@@ -104,7 +100,7 @@ public class AuthService : IAuthService
             Email = request.Email,
             UserName = request.Email,
             FullName = request.FullName,
-            PhoneNumber = request.Phone,  // ← Save PhoneNumber
+            PhoneNumber = request.Phone,
             IsActive = true
         };
 
@@ -118,7 +114,7 @@ public class AuthService : IAuthService
 
         await _userManager.AddToRoleAsync(user, "Customer");
 
-        // Create Customer record
+        // Now save the customer details in our own Customer table
         var customer = new Customer
         {
             UserId = user.Id,
@@ -128,7 +124,7 @@ public class AuthService : IAuthService
         _customerRepository.Create(customer);
         await _customerRepository.SaveChangesAsync();
 
-        // Create Vehicle record
+        // If the customer provided vehicle info, save that too
         if (!string.IsNullOrEmpty(request.PlateNumber) && !string.IsNullOrEmpty(request.VehicleModel))
         {
             var vehicle = new Vehicle
@@ -159,10 +155,8 @@ public class AuthService : IAuthService
     }
 
     /// <summary>
-    /// Register a new staff user (Internal only)
+    /// Creates a new staff account - only admins can do this from the dashboard
     /// </summary>
-    /// <param name="request">Staff data including Department</param>
-    /// <returns>Login response with token</returns>
     public async Task<LoginResponse> RegisterStaffAsync(StaffRegisterRequest request)
     {
         var existingUser = await _userManager.FindByEmailAsync(request.Email);
@@ -217,11 +211,10 @@ public class AuthService : IAuthService
     }
 
     /// <summary>
-    /// Create a customer profile by an authorized staff member
+    /// Staff uses this to register a walk-in customer at the counter.
+    /// Password is auto-generated and vehicle info is mandatory here.
     /// </summary>
-    /// <param name="request">Customer data</param>
-    /// <returns>Created user details</returns>
-    public async Task<UserDto> CreateCustomerByStaffAsync(RegisterRequest request)
+    public async Task<StaffCustomerRegisterResponse> CreateCustomerByStaffAsync(StaffCustomerRegisterRequest request)
     {
         var existingUser = await _userManager.FindByEmailAsync(request.Email);
         if (existingUser != null)
@@ -235,10 +228,14 @@ public class AuthService : IAuthService
             Email = request.Email,
             UserName = request.Email,
             FullName = request.FullName,
+            PhoneNumber = request.Phone,
             IsActive = true
         };
 
-        var result = await _userManager.CreateAsync(user, request.Password);
+        // The customer doesn't pick their own password here - we generate one for them
+        var generatedPassword = Guid.NewGuid().ToString("N")[..10];
+
+        var result = await _userManager.CreateAsync(user, generatedPassword);
         if (!result.Succeeded)
         {
             var errors = string.Join(", ", result.Errors.Select(e => e.Description));
@@ -257,34 +254,38 @@ public class AuthService : IAuthService
         _customerRepository.Create(customer);
         await _customerRepository.SaveChangesAsync();
 
-        _logger.LogInformation($"Customer created by staff: {request.Email}");
-
-        if (!string.IsNullOrEmpty(request.PlateNumber) && !string.IsNullOrEmpty(request.VehicleModel))
+        // Vehicle info is required when staff registers a customer, so we always save it
+        var vehicle = new Vehicle
         {
-            var vehicle = new Vehicle
-            {
-                CustomerId = customer.Id,
-                PlateNumber = request.PlateNumber,
-                Model = request.VehicleModel,
-                Year = request.VehicleYear
-            };
-
-            _vehicleRepository.Create(vehicle);
-            await _vehicleRepository.SaveChangesAsync();
+            CustomerId = customer.Id,
+            PlateNumber = request.PlateNumber,
+            Model = request.VehicleModel,
+            Year = request.VehicleYear
+        };
+        
+        if (!string.IsNullOrEmpty(request.VehicleMake))
+        {
+            vehicle.Notes = $"Make: {request.VehicleMake}";
         }
 
-        return new UserDto
+        _vehicleRepository.Create(vehicle);
+        await _vehicleRepository.SaveChangesAsync();
+
+        _logger.LogInformation($"Customer created by staff: {request.Email}");
+
+        return new StaffCustomerRegisterResponse
         {
             Id = user.Id,
             Email = user.Email,
             FullName = user.FullName,
             Role = "Customer",
-            IsActive = user.IsActive
+            IsActive = user.IsActive,
+            GeneratedPassword = generatedPassword
         };
     }
 
     /// <summary>
-    /// Internal helper to generate secure JWT tokens
+    /// Builds a JWT token with the user's claims baked in - used after every successful login or signup
     /// </summary>
     private async Task<string> GenerateTokenAsync(ApplicationUser user)
     {
@@ -314,7 +315,7 @@ public class AuthService : IAuthService
     }
 
     /// <summary>
-    /// Internal helper to fetch user role
+    /// Quick helper to grab the user's role - defaults to "Customer" if somehow they don't have one
     /// </summary>
     private async Task<string> GetUserRoleAsync(ApplicationUser user)
     {

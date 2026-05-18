@@ -7,8 +7,8 @@ public interface IAuthService
     Task<LoginResponse> LoginAsync(LoginRequest request);
     Task<LoginResponse> RegisterAsync(RegisterRequest request);
     
-    // Using the independent Staff DTO
+    // Staff registration uses its own DTO since it needs a Department field
     Task<LoginResponse> RegisterStaffAsync(StaffRegisterRequest request);
     
-    Task<UserDto> CreateCustomerByStaffAsync(RegisterRequest request);
+    Task<StaffCustomerRegisterResponse> CreateCustomerByStaffAsync(StaffCustomerRegisterRequest request);
 }
