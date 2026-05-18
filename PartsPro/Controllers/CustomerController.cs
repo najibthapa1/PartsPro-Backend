@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using PartsPro.Application.DTOs.Auth;
 using PartsPro.Application.DTOs.Customers;
@@ -121,6 +121,20 @@ public class CustomerController : ControllerBase
 
         var history = await _customerService.GetCustomerHistoryAsync(customerId);
         return Ok(history);
+    }
+
+    /// <summary>
+    /// Search for customers by name, phone, ID, or vehicle plate number.
+    /// Staff can use this to quickly find customer records at the counter.
+    /// </summary>
+    /// <param name="query">The search term</param>
+    /// <returns>A list of matching customers with their vehicles and credit balance</returns>
+    [HttpGet("search/{query}")]
+    [Authorize(Roles = "Staff,Admin")]
+    public async Task<ActionResult<IEnumerable<CustomerSearchResponse>>> SearchCustomers(string query)
+    {
+        var customers = await _customerService.SearchCustomersAsync(query);
+        return Ok(customers);
     }
 
     private async Task<bool> CanAccessCustomerAsync(int customerId)

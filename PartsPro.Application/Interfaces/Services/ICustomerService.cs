@@ -10,5 +10,6 @@ public interface ICustomerService
     Task AddVehicleAsync(int customerId, AddVehicleRequest request);
     Task<IEnumerable<CustomerVehicleResponse>> GetVehiclesAsync(int customerId);
     Task<CustomerHistoryResponse> GetCustomerHistoryAsync(int customerId);
+    Task<IEnumerable<CustomerSearchResponse>> SearchCustomersAsync(string query);
 }
 
