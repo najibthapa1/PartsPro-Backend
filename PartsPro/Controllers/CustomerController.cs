@@ -51,6 +51,7 @@ public class CustomerController : ControllerBase
     /// Get a customer profile summary.
     /// </summary>
     [Authorize(Roles = "Admin,Staff,Customer")]
+    [Authorize]
     [HttpGet("profile/{customerId}")]
     public async Task<ActionResult<CustomerProfileResponse>> GetProfile(int customerId)
     {
@@ -65,6 +66,7 @@ public class CustomerController : ControllerBase
     /// Update a customer profile.
     /// </summary>
     [Authorize(Roles = "Admin,Staff,Customer")]
+    [Authorize]
     [HttpPut("profile/{customerId}")]
     public async Task<IActionResult> UpdateProfile(int customerId, [FromBody] UpdateCustomerRequest request)
     {
@@ -82,6 +84,7 @@ public class CustomerController : ControllerBase
     /// Add a vehicle to the customer profile.
     /// </summary>
     [Authorize(Roles = "Admin,Staff,Customer")]
+    [Authorize]
     [HttpPost("{customerId}/vehicles")]
     public async Task<IActionResult> AddVehicle(int customerId, [FromBody] AddVehicleRequest request)
     {
@@ -99,6 +102,7 @@ public class CustomerController : ControllerBase
     /// Get all vehicles for a customer.
     /// </summary>
     [Authorize(Roles = "Admin,Staff,Customer")]
+    [Authorize]
     [HttpGet("{customerId}/vehicles")]
     public async Task<ActionResult<IEnumerable<CustomerVehicleResponse>>> GetVehicles(int customerId)
     {
@@ -113,6 +117,7 @@ public class CustomerController : ControllerBase
     /// Get complete customer history.
     /// </summary>
     [Authorize(Roles = "Admin,Staff,Customer")]
+    [Authorize]
     [HttpGet("{customerId}/history")]
     public async Task<ActionResult<CustomerHistoryResponse>> GetCustomerHistory(int customerId)
     {
