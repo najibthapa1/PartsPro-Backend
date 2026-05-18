@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using PartsPro.Application.DTOs.Customers;
@@ -291,6 +291,41 @@ public class CustomerService : ICustomerService
             CreditBalance = creditBalance,
             LastActivityDate = lastActivityDate
         };
+    }
+
+    public async Task<IEnumerable<CustomerSearchResponse>> SearchCustomersAsync(string query)
+    {
+        // If they just hit search without typing anything, don't return the whole database
+        if (string.IsNullOrWhiteSpace(query))
+        {
+            return Enumerable.Empty<CustomerSearchResponse>();
+        }
+
+        _logger.LogInformation($"Searching customers with query: {query}");
+        var customers = await _customerRepository.SearchCustomersAsync(query);
+
+        // Package up the messy database models into clean, front-end friendly DTOs
+        return customers.Select(c => new CustomerSearchResponse
+        {
+            Id = c.Id,
+            FullName = c.User?.FullName ?? c.FullName,
+            Email = c.User?.Email ?? string.Empty,
+            Phone = c.User?.PhoneNumber ?? string.Empty,
+            Address = c.Address,
+            CreatedAt = c.CreatedAt,
+            IsActive = c.User?.IsActive ?? false,
+            
+            // Automatically calculate how much money they owe us by summing up unpaid/overdue bills
+            TotalCreditOwed = c.CreditRecords.Where(cr => cr.Status == PartsPro.Domain.Enums.InvoiceStatus.Unpaid || cr.Status == PartsPro.Domain.Enums.InvoiceStatus.Overdue).Sum(cr => cr.Amount),
+            
+            // Just send back the basic vehicle details so the UI isn't overloaded
+            Vehicles = c.Vehicles.Select(v => new CustomerVehicleDto
+            {
+                PlateNumber = v.PlateNumber,
+                Model = v.Model,
+                Year = v.Year
+            }).ToList()
+        });
     }
 
     private static int CalculateLoyaltyPoints(decimal totalSpent)
