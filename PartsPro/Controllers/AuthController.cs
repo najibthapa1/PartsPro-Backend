@@ -17,7 +17,7 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// Authenticate a user and return a JWT token
+    /// Handles user login - validates credentials and sends back a JWT token
     /// </summary>
     [HttpPost("login")]
     public async Task<ActionResult<LoginResponse>> Login(LoginRequest request)
@@ -32,7 +32,7 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// Register a new customer user (Self-registration)
+    /// Public endpoint for customers to create their own account
     /// </summary>
     [HttpPost("register")]
     public async Task<ActionResult<LoginResponse>> Register(RegisterRequest request)
@@ -47,7 +47,7 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// Register a new staff member (Admin only)
+    /// Only admins can use this to add new staff members to the system
     /// </summary>
     [Authorize(Roles = "Admin")]
     [HttpPost("register-staff")]
@@ -63,11 +63,11 @@ public class AuthController : ControllerBase
     }
 
     /// <summary>
-    /// Create a customer user profile (Staff only)
+    /// Staff or admin uses this to register a walk-in customer with their vehicle details
     /// </summary>
     [Authorize(Roles = "Staff,Admin")]
     [HttpPost("register-customer-by-staff")]
-    public async Task<ActionResult<UserDto>> CreateCustomerByStaff(RegisterRequest request)
+    public async Task<ActionResult<StaffCustomerRegisterResponse>> CreateCustomerByStaff(StaffCustomerRegisterRequest request)
     {
         if (!ModelState.IsValid)
         {
