@@ -53,9 +53,4 @@ public class SaleRepository : RepositoryBase<Sale>, ISaleRepository
                 .ThenInclude(i => i.Part)
             .FirstOrDefaultAsync(s => s.Id == id);
     }
-
-    public void Update(Sale sale)
-    {
-        _context.Sales.Update(sale);
-    }
 }
