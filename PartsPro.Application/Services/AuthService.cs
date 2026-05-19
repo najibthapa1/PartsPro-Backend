@@ -69,12 +69,21 @@ public class AuthService : IAuthService
         var token = await GenerateTokenAsync(user);
         var role = await GetUserRoleAsync(user);
 
+        // Get customer ID if user is a customer (needed for API calls like /api/customer/profile/{customerId})
+        int? customerId = null;
+        if (role == "Customer")
+        {
+            var customer = await _customerRepository.GetByUserIdAsync(user.Id);
+            customerId = customer?.Id;
+        }
+
         return new LoginResponse
         {
             Token = token,
             User = new UserDto
             {
                 Id = user.Id,
+                CustomerId = customerId,
                 Email = user.Email ?? string.Empty,
                 FullName = user.FullName,
                 Role = role,
@@ -146,6 +155,7 @@ public class AuthService : IAuthService
             User = new UserDto
             {
                 Id = user.Id,
+                CustomerId = customer.Id,  // Return the integer customer ID
                 Email = user.Email,
                 FullName = user.FullName,
                 Role = "Customer",
@@ -280,7 +290,8 @@ public class AuthService : IAuthService
             FullName = user.FullName,
             Role = "Customer",
             IsActive = user.IsActive,
-            GeneratedPassword = generatedPassword
+            GeneratedPassword = generatedPassword,
+            CustomerId = customer.Id  // Return the integer customer ID
         };
     }
 

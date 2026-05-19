@@ -25,6 +25,9 @@ public class ReportService : IReportService
     /// </summary>
     public async Task<FinancialReportResponse> GetFinancialReportAsync(DateTime startDate, DateTime endDate)
     {
+        startDate = EnsureUtc(startDate);
+        endDate = EnsureUtc(endDate);
+
         _logger.LogInformation($"Generating financial report from {startDate} to {endDate}");
 
         // Get sales data
@@ -102,7 +105,7 @@ public class ReportService : IReportService
     /// </summary>
     public async Task<FinancialReportResponse> GetYearlyFinancialReportAsync(int year)
     {
-        var startDate = new DateTime(year, 1, 1);
+        var startDate = new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         var endDate = startDate.AddYears(1).AddTicks(-1);
 
         return await GetFinancialReportAsync(startDate, endDate);
@@ -242,6 +245,9 @@ public class ReportService : IReportService
     /// </summary>
     public async Task<IEnumerable<DailySalesResponse>> GetDailySalesReportAsync(DateTime startDate, DateTime endDate)
     {
+        startDate = EnsureUtc(startDate);
+        endDate = EnsureUtc(endDate);
+
         _logger.LogInformation($"Generating daily sales report from {startDate} to {endDate}");
 
         var dailySales = await _reportRepository.GetDailySalesAsync(startDate, endDate);
@@ -259,10 +265,21 @@ public class ReportService : IReportService
     /// </summary>
     public async Task<FinancialReportResponse> GetProfitAndLossStatementAsync(DateTime startDate, DateTime endDate)
     {
+        startDate = EnsureUtc(startDate);
+        endDate = EnsureUtc(endDate);
+
         _logger.LogInformation($"Generating profit and loss statement from {startDate} to {endDate}");
 
         // This uses the same logic as GetFinancialReportAsync
         return await GetFinancialReportAsync(startDate, endDate);
     }
+
+    private static DateTime EnsureUtc(DateTime value)
+        => value.Kind switch
+        {
+            DateTimeKind.Utc => value,
+            DateTimeKind.Local => value.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
+        };
 }
 

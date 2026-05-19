@@ -22,6 +22,9 @@ public class ReportController(IReportService reportService) : ControllerBase
         [FromQuery] DateTime startDate,
         [FromQuery] DateTime endDate)
     {
+        startDate = EnsureUtc(startDate);
+        endDate = EnsureUtc(endDate);
+
         if (startDate > endDate)
         {
             return BadRequest("Start date must be before end date");
@@ -41,6 +44,9 @@ public class ReportController(IReportService reportService) : ControllerBase
         [FromQuery] DateTime startDate,
         [FromQuery] DateTime endDate)
     {
+        startDate = EnsureUtc(startDate);
+        endDate = EnsureUtc(endDate);
+
         if (startDate > endDate)
         {
             return BadRequest("Start date must be before end date");
@@ -104,6 +110,9 @@ public class ReportController(IReportService reportService) : ControllerBase
         [FromQuery] DateTime startDate,
         [FromQuery] DateTime endDate)
     {
+        startDate = EnsureUtc(startDate);
+        endDate = EnsureUtc(endDate);
+
         if (startDate > endDate)
         {
             return BadRequest("Start date must be before end date");
@@ -161,5 +170,13 @@ public class ReportController(IReportService reportService) : ControllerBase
         var report = await _reportService.GetInventorySummaryAsync();
         return Ok(report);
     }
+
+    private static DateTime EnsureUtc(DateTime value)
+        => value.Kind switch
+        {
+            DateTimeKind.Utc => value,
+            DateTimeKind.Local => value.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
+        };
 }
 
