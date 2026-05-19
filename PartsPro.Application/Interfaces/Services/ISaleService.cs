@@ -11,4 +11,6 @@ public interface ISaleService
     Task<List<SaleResponse>> GetAllSalesAsync();
 
     Task<List<SaleResponse>> GetSalesByCustomerIdAsync(int customerId);
+
+    Task<bool> SendInvoiceEmailAsync(int saleId);
 }
