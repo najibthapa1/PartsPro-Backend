@@ -221,79 +221,75 @@ public class AuthService : IAuthService
     }
 
     /// <summary>
-    /// Staff uses this to register a walk-in customer at the counter.
-    /// Password is auto-generated and vehicle info is mandatory here.
-    /// </summary>
-    public async Task<StaffCustomerRegisterResponse> CreateCustomerByStaffAsync(StaffCustomerRegisterRequest request)
+/// Staff uses this to register a walk-in customer at the counter.
+/// Staff enters the customer's password from the registration form.
+/// </summary>
+public async Task<StaffCustomerRegisterResponse> CreateCustomerByStaffAsync(StaffCustomerRegisterRequest request)
+{
+    var existingUser = await _userManager.FindByEmailAsync(request.Email);
+    if (existingUser != null)
     {
-        var existingUser = await _userManager.FindByEmailAsync(request.Email);
-        if (existingUser != null)
-        {
-            _logger.LogWarning($"Customer creation failed: Email {request.Email} already exists");
-            throw new ConflictException("User already exists");
-        }
-
-        var user = new ApplicationUser
-        {
-            Email = request.Email,
-            UserName = request.Email,
-            FullName = request.FullName,
-            PhoneNumber = request.Phone,
-            IsActive = true
-        };
-
-        // The customer doesn't pick their own password here - we generate one for them
-        var generatedPassword = Guid.NewGuid().ToString("N")[..10];
-
-        var result = await _userManager.CreateAsync(user, generatedPassword);
-        if (!result.Succeeded)
-        {
-            var errors = string.Join(", ", result.Errors.Select(e => e.Description));
-            _logger.LogWarning($"Customer creation failed: {errors}");
-            throw new BadRequestException(errors);
-        }
-
-        await _userManager.AddToRoleAsync(user, "Customer");
-
-        var customer = new Customer
-        {
-            UserId = user.Id,
-            Address = request.Address,
-            FullName = request.FullName
-        };
-        _customerRepository.Create(customer);
-        await _customerRepository.SaveChangesAsync();
-
-        // Vehicle info is required when staff registers a customer, so we always save it
-        var vehicle = new Vehicle
-        {
-            CustomerId = customer.Id,
-            PlateNumber = request.PlateNumber,
-            Model = request.VehicleModel,
-            Year = request.VehicleYear
-        };
-        
-        if (!string.IsNullOrEmpty(request.VehicleMake))
-        {
-            vehicle.Notes = $"Make: {request.VehicleMake}";
-        }
-
-        _vehicleRepository.Create(vehicle);
-        await _vehicleRepository.SaveChangesAsync();
-
-        _logger.LogInformation($"Customer created by staff: {request.Email}");
-
-        return new StaffCustomerRegisterResponse
-        {
-            Id = user.Id,
-            Email = user.Email,
-            FullName = user.FullName,
-            Role = "Customer",
-            IsActive = user.IsActive,
-            GeneratedPassword = generatedPassword,
-            CustomerId = customer.Id  // Return the integer customer ID
-        };
+        _logger.LogWarning($"Customer creation failed: Email {request.Email} already exists");
+        throw new ConflictException("User already exists");
     }
+
+    var user = new ApplicationUser
+    {
+        Email = request.Email,
+        UserName = request.Email,
+        FullName = request.FullName,
+        PhoneNumber = request.Phone,
+        IsActive = true
+    };
+
+    var result = await _userManager.CreateAsync(user, request.Password);
+    if (!result.Succeeded)
+    {
+        var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+        _logger.LogWarning($"Customer creation failed: {errors}");
+        throw new BadRequestException(errors);
+    }
+
+    await _userManager.AddToRoleAsync(user, "Customer");
+
+    var customer = new Customer
+    {
+        UserId = user.Id,
+        Address = request.Address,
+        FullName = request.FullName
+    };
+
+    _customerRepository.Create(customer);
+    await _customerRepository.SaveChangesAsync();
+
+    var vehicle = new Vehicle
+    {
+        CustomerId = customer.Id,
+        PlateNumber = request.PlateNumber,
+        Model = request.VehicleModel,
+        Year = request.VehicleYear
+    };
+
+    if (!string.IsNullOrEmpty(request.VehicleMake))
+    {
+        vehicle.Notes = $"Make: {request.VehicleMake}";
+    }
+
+    _vehicleRepository.Create(vehicle);
+    await _vehicleRepository.SaveChangesAsync();
+
+    _logger.LogInformation($"Customer created by staff: {request.Email}");
+
+    return new StaffCustomerRegisterResponse
+    {
+        Id = user.Id,
+        Email = user.Email,
+        FullName = user.FullName,
+        Role = "Customer",
+        IsActive = user.IsActive,
+        CustomerId = customer.Id
+    };
+}
 
     /// <summary>
     /// Builds a JWT token with the user's claims baked in - used after every successful login or signup

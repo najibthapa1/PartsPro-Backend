@@ -15,7 +15,7 @@ public class PartService : IPartService
     private readonly ILogger<PartService> _logger;
 
     public PartService(
-        IPartRepository partRepository, 
+        IPartRepository partRepository,
         IVendorRepository vendorRepository,
         ILogger<PartService> logger)
     {
@@ -25,8 +25,7 @@ public class PartService : IPartService
     }
 
     public async Task<PartResponse> CreatePartAsync(CreatePartRequest request)
-    { 
-        // Check if vendor exists
+    {
         var vendor = await _vendorRepository.GetByIdAsync(request.VendorId);
         if (vendor == null)
         {
@@ -40,6 +39,7 @@ public class PartService : IPartService
             PartNumber = request.PartNumber,
             Category = request.Category,
             Price = request.Price,
+            CostPrice = request.CostPrice,
             Stock = request.Stock,
             VendorId = request.VendorId
         };
@@ -49,6 +49,8 @@ public class PartService : IPartService
 
         _logger.LogInformation("Part created successfully: {PartName} (ID: {PartId})", part.Name, part.Id);
 
+        // Attach vendor data for the response if available.
+        part.Vendor = vendor;
         return MapToResponse(part);
     }
 
@@ -89,7 +91,6 @@ public class PartService : IPartService
             throw new NotFoundException($"Part with ID {id} not found");
         }
 
-        // Check if vendor exists if it's being changed
         if (part.VendorId != request.VendorId)
         {
             var vendor = await _vendorRepository.GetByIdAsync(request.VendorId);
@@ -103,6 +104,7 @@ public class PartService : IPartService
         part.PartNumber = request.PartNumber;
         part.Category = request.Category;
         part.Price = request.Price;
+        part.CostPrice = request.CostPrice;
         part.Stock = request.Stock;
         part.VendorId = request.VendorId;
 
@@ -129,6 +131,17 @@ public class PartService : IPartService
         _logger.LogInformation("Part deleted successfully (ID: {PartId})", id);
     }
 
+    public async Task<IEnumerable<PartResponse>> SearchPartsAsync(string query)
+    {
+        var parts = await _partRepository.FindAll(trackChanges: false)
+            .Include(p => p.Vendor)
+            .Where(p => p.Name.Contains(query) || p.PartNumber.Contains(query))
+            .Take(20)
+            .ToListAsync();
+
+        return parts.Select(MapToResponse);
+    }
+
     private static PartResponse MapToResponse(Part part)
     {
         return new PartResponse
@@ -138,19 +151,11 @@ public class PartService : IPartService
             PartNumber = part.PartNumber,
             Category = part.Category,
             Price = part.Price,
+            CostPrice = part.CostPrice,
             Stock = part.Stock,
             VendorId = part.VendorId,
             VendorName = part.Vendor?.Name ?? string.Empty,
             CreatedAt = part.CreatedAt
         };
-    }
-    public async Task<IEnumerable<PartResponse>> SearchPartsAsync(string query)
-    {
-        var parts = await _partRepository.FindAll(trackChanges: false)
-            .Include(p => p.Vendor)
-            .Where(p => p.Name.Contains(query) || p.PartNumber.Contains(query))
-            .Take(20)
-            .ToListAsync();
-        return parts.Select(MapToResponse);
     }
 }
