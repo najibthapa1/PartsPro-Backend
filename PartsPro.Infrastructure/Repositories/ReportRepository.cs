@@ -108,9 +108,13 @@ public class ReportRepository : RepositoryBase<Sale>, IReportRepository
     /// </summary>
     public async Task<List<(int PartId, string PartName, string PartNumber, int QuantitySold, decimal Revenue)>> GetTopSellingPartsAsync(int limit = 10)
     {
-        var topParts = await _context.SaleItems
+        // Materialize data first, then group in memory (EF Core can't translate grouping with included entity properties)
+        var saleItems = await _context.SaleItems
             .Include(si => si.Part)
             .AsNoTracking()
+            .ToListAsync();
+
+        var topParts = saleItems
             .GroupBy(si => new { si.PartId, si.Part.Name, si.Part.PartNumber })
             .Select(g => new
             {
@@ -122,7 +126,7 @@ public class ReportRepository : RepositoryBase<Sale>, IReportRepository
             })
             .OrderByDescending(x => x.Revenue)
             .Take(limit)
-            .ToListAsync();
+            .ToList();
 
         return topParts
             .Select(x => (x.PartId, x.PartName, PartNumber: x.PartNumberStr, x.QuantitySold, x.Revenue))
