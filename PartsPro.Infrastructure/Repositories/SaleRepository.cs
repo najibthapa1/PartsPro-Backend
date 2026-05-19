@@ -43,4 +43,18 @@ public class SaleRepository : RepositoryBase<Sale>, ISaleRepository
             .OrderByDescending(s => s.CreatedAt)
             .ToListAsync();
     }
+    
+    public async Task<Sale?> GetByIdWithItemsAndCustomerAsync(int id)
+    {
+        return await _context.Sales
+            .Include(s => s.Customer)
+            .Include(s => s.Items)
+            .ThenInclude(i => i.Part)
+            .FirstOrDefaultAsync(s => s.Id == id);
+    }
+
+    public void Update(Sale sale)
+    {
+        _context.Sales.Update(sale);
+    }
 }

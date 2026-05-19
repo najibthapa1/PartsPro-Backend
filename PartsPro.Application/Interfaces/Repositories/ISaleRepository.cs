@@ -8,4 +8,6 @@ public interface ISaleRepository : IRepositoryBase<Sale>
 
     Task<List<Sale>> GetAllWithItemsAsync();
     Task<List<Sale>> GetByCustomerIdAsync(int customerId);
+    Task<Sale?> GetByIdWithItemsAndCustomerAsync(int id);
+    void Update(Sale sale);
 }
