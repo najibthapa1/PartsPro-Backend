@@ -48,8 +48,9 @@ public class SaleRepository : RepositoryBase<Sale>, ISaleRepository
     {
         return await _context.Sales
             .Include(s => s.Customer)
+                .ThenInclude(c => c.User)
             .Include(s => s.Items)
-            .ThenInclude(i => i.Part)
+                .ThenInclude(i => i.Part)
             .FirstOrDefaultAsync(s => s.Id == id);
     }
 

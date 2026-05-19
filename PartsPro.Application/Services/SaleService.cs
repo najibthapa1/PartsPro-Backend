@@ -13,16 +13,19 @@ public class SaleService : ISaleService
     private readonly IPartRepository _partRepository;
     private readonly ICustomerRepository _customerRepository;
     private readonly ILogger<SaleService> _logger;
+    private readonly IEmailRepository _emailRepository;
 
     public SaleService(
         ISaleRepository saleRepository,
         IPartRepository partRepository,
         ICustomerRepository customerRepository,
+        IEmailRepository emailRepository,
         ILogger<SaleService> logger)
     {
         _saleRepository = saleRepository;
         _partRepository = partRepository;
         _customerRepository = customerRepository;
+        _emailRepository = emailRepository;
         _logger = logger;
     }
 
@@ -186,5 +189,104 @@ public class SaleService : ISaleService
                 LineTotal = item.UnitPrice * item.Quantity
             }).ToList()
         };
+    }
+    
+    public async Task<bool> SendInvoiceEmailAsync(int saleId)
+    {
+        var sale = await _saleRepository.GetByIdWithItemsAndCustomerAsync(saleId);
+
+        if (sale == null)
+        {
+            _logger.LogWarning("Invoice email failed. Sale ID {SaleId} was not found.", saleId);
+            throw new NotFoundException($"Sale with ID {saleId} not found.");
+        }
+
+        if (sale.Customer == null)
+        {
+            _logger.LogWarning("Invoice email failed. Customer was not found for Sale ID {SaleId}.", saleId);
+            throw new NotFoundException("Customer details not found for this sale.");
+        }
+
+        if (sale.Customer.User == null || string.IsNullOrWhiteSpace(sale.Customer.User.Email))
+        {
+            _logger.LogWarning("Invoice email failed. Customer email is missing for Sale ID {SaleId}.", saleId);
+            throw new BadRequestException("Customer email is missing.");
+        }
+
+        var subject = $"PartsPro Invoice #{sale.Id}";
+        var body = BuildInvoiceEmailBody(sale);
+
+        var isSent = await _emailRepository.SendEmailAsync(
+            sale.Customer.User.Email,
+            subject,
+            body,
+            true);
+
+        if (!isSent)
+        {
+            _logger.LogWarning("Invoice email failed to send. Sale ID {SaleId}", saleId);
+            return false;
+        }
+
+        sale.IsEmailSent = true;
+        _saleRepository.Update(sale);
+        await _saleRepository.SaveChangesAsync();
+
+        _logger.LogInformation(
+            "Invoice email sent successfully. Sale ID: {SaleId}, Customer Email: {CustomerEmail}",
+            sale.Id,
+            sale.Customer.User.Email);
+
+        return true;
+    }
+    
+    private static string BuildInvoiceEmailBody(Sale sale)
+    {
+        var itemRows = string.Join("", sale.Items.Select(item => $@"
+        <tr>
+            <td>{item.Part?.Name ?? "N/A"}</td>
+            <td>{item.Part?.PartNumber ?? "N/A"}</td>
+            <td>{item.Quantity}</td>
+            <td>{item.UnitPrice:C}</td>
+            <td>{item.UnitPrice * item.Quantity:C}</td>
+        </tr>
+    "));
+
+        return $@"
+        <html>
+        <body style='font-family: Arial, sans-serif; color: #333;'>
+            <h2>PartsPro Sales Invoice</h2>
+
+            <p>Dear {sale.Customer?.FullName ?? "Customer"},</p>
+            <p>Thank you for your purchase. Please find your invoice details below.</p>
+
+            <h3>Invoice Details</h3>
+            <p><strong>Invoice ID:</strong> {sale.Id}</p>
+            <p><strong>Date:</strong> {sale.CreatedAt:yyyy-MM-dd HH:mm}</p>
+
+            <table border='1' cellpadding='8' cellspacing='0' style='border-collapse: collapse; width: 100%;'>
+                <thead>
+                    <tr>
+                        <th>Part Name</th>
+                        <th>Part Number</th>
+                        <th>Quantity</th>
+                        <th>Unit Price</th>
+                        <th>Line Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {itemRows}
+                </tbody>
+            </table>
+
+            <h3>Payment Summary</h3>
+            <p><strong>Total Amount:</strong> {sale.TotalAmount:C}</p>
+            <p><strong>Discount Amount:</strong> {sale.DiscountAmount:C}</p>
+            <p><strong>Final Amount:</strong> {sale.FinalAmount:C}</p>
+
+            <p>Regards,<br/>PartsPro Team</p>
+        </body>
+        </html>
+    ";
     }
 }
