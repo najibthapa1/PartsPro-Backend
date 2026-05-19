@@ -16,9 +16,13 @@ public class CreatePartRequest
     [MaxLength(50)]
     public string Category { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "Price is required")]
-    [Range(0.01, double.MaxValue, ErrorMessage = "Price must be greater than 0")]
+    [Required(ErrorMessage = "Selling price is required")]
+    [Range(0.01, double.MaxValue, ErrorMessage = "Selling price must be greater than 0")]
     public decimal Price { get; set; }
+
+    [Required(ErrorMessage = "Cost price is required")]
+    [Range(0.01, double.MaxValue, ErrorMessage = "Cost price must be greater than 0")]
+    public decimal CostPrice { get; set; }
 
     [Required(ErrorMessage = "Stock is required")]
     [Range(0, int.MaxValue, ErrorMessage = "Stock cannot be negative")]

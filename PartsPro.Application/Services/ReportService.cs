@@ -7,7 +7,8 @@ using PartsPro.Domain.Enums;
 namespace PartsPro.Application.Services;
 
 /// <summary>
-/// Service for generating financial and inventory reports
+/// Service for generating financial and inventory reports.
+/// Financial calculations use selling price for revenue and cost price for COGS/inventory value.
 /// </summary>
 public class ReportService : IReportService
 {
@@ -21,24 +22,27 @@ public class ReportService : IReportService
     }
 
     /// <summary>
-    /// Get comprehensive financial report for a date range
+    /// Get comprehensive financial report for a date range.
+    /// Revenue = sale final amount after discount.
+    /// COGS = quantity sold multiplied by part cost price.
+    /// Inventory value = current stock multiplied by part cost price.
     /// </summary>
     public async Task<FinancialReportResponse> GetFinancialReportAsync(DateTime startDate, DateTime endDate)
     {
         startDate = EnsureUtc(startDate);
         endDate = EnsureUtc(endDate);
 
-        _logger.LogInformation($"Generating financial report from {startDate} to {endDate}");
+        _logger.LogInformation("Generating financial report from {StartDate} to {EndDate}", startDate, endDate);
 
-        // Get sales data
         var sales = await _reportRepository.GetSalesByDateRangeAsync(startDate, endDate);
+
         var totalSalesRevenue = sales.Sum(s => s.FinalAmount);
         var totalSalesCount = sales.Count;
         var totalSalesDiscounts = sales.Sum(s => s.DiscountAmount);
         var averageSaleAmount = totalSalesCount > 0 ? totalSalesRevenue / totalSalesCount : 0;
 
-        // Get purchase data
         var purchases = await _reportRepository.GetPurchasesByDateRangeAsync(startDate, endDate);
+
         var totalPurchaseCost = purchases.Sum(pi => pi.TotalCost);
         var totalPurchasesCount = purchases.Count;
         var totalPurchasesPaid = purchases
@@ -49,23 +53,30 @@ public class ReportService : IReportService
             .Sum(pi => pi.TotalCost);
         var averagePurchaseAmount = totalPurchasesCount > 0 ? totalPurchaseCost / totalPurchasesCount : 0;
 
-        // Get inventory data
         var parts = await _reportRepository.GetAllPartsWithInventoryAsync();
-        var totalInventoryValue = parts.Sum(p => p.Price * p.Stock);
+
+        // Correct accounting-style inventory value.
+        var totalInventoryValue = parts.Sum(p => p.CostPrice * p.Stock);
         var lowStockParts = parts.Where(p => p.Stock < 10).ToList();
 
-        // Calculate financial metrics
-        var costOfGoodsSold = purchases.Sum(pi => pi.Items.Sum(pui => pui.LineTotal));
-        var grossProfit = totalSalesRevenue - costOfGoodsSold;
-        var grossProfitMargin = totalSalesRevenue > 0 ? (grossProfit / totalSalesRevenue) * 100 : 0;
-        var netProfit = grossProfit - totalPurchasesUnpaid;
+        // Correct COGS: only the cost of goods that were actually sold in the selected period.
+        var costOfGoodsSold = sales
+            .SelectMany(s => s.Items)
+            .Sum(item => item.Quantity * item.Part.CostPrice);
 
-        // Get customer metrics
+        var grossProfit = totalSalesRevenue - costOfGoodsSold;
+        var grossProfitMargin = totalSalesRevenue > 0
+            ? (grossProfit / totalSalesRevenue) * 100
+            : 0;
+
+        // In this simplified system, net profit equals gross profit because other operating expenses
+        // are not stored separately. Unpaid purchase invoices are liabilities, not immediate P&L expenses.
+        var netProfit = grossProfit;
+
         var activeCustomers = await _reportRepository.GetActiveCustomersCountAsync(startDate, endDate);
         var totalCustomersCount = await _reportRepository.GetTotalCustomersCountAsync();
         var averageOrderValue = totalSalesCount > 0 ? totalSalesRevenue / totalSalesCount : 0;
 
-        // Get vendor metrics
         var totalVendors = await _reportRepository.GetTotalVendorsCountAsync();
 
         var report = new FinancialReportResponse
@@ -73,50 +84,50 @@ public class ReportService : IReportService
             ReportDate = DateTime.UtcNow,
             StartDate = startDate,
             EndDate = endDate,
+
             TotalSalesRevenue = totalSalesRevenue,
             TotalSalesCount = totalSalesCount,
             AverageSaleAmount = averageSaleAmount,
             TotalSalesDiscounts = totalSalesDiscounts,
+
             TotalPurchaseCost = totalPurchaseCost,
             TotalPurchasesCount = totalPurchasesCount,
             AveragePurchaseAmount = averagePurchaseAmount,
             TotalPurchasesPaid = totalPurchasesPaid,
             TotalPurchasesUnpaid = totalPurchasesUnpaid,
+
             TotalPartsInInventory = parts.Count,
             TotalInventoryValue = totalInventoryValue,
             LowStockPartsCount = lowStockParts.Count,
+
             GrossProfit = grossProfit,
             NetProfit = netProfit,
             CostOfGoodsSold = costOfGoodsSold,
             GrossProfitMargin = grossProfitMargin,
+
             TotalCustomers = totalCustomersCount,
             ActiveCustomers = activeCustomers,
             AverageOrderValue = averageOrderValue,
+
             TotalVendors = totalVendors,
-            ActiveVendors = purchases.Select(pi => pi.VendorId).Distinct().Count()
+            ActiveVendors = purchases.Select(pi => pi.VendorId).Distinct().Count(),
+            AverageVendorPayment = totalPurchasesCount > 0 ? totalPurchaseCost / totalPurchasesCount : 0
         };
 
-        _logger.LogInformation($"Financial report generated successfully");
+        _logger.LogInformation("Financial report generated successfully");
         return report;
     }
 
-    /// <summary>
-    /// Get financial report for a full year
-    /// </summary>
     public async Task<FinancialReportResponse> GetYearlyFinancialReportAsync(int year)
     {
         var startDate = new DateTime(year, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         var endDate = startDate.AddYears(1).AddTicks(-1);
-
         return await GetFinancialReportAsync(startDate, endDate);
     }
 
-    /// <summary>
-    /// Get monthly sales summary for the current year
-    /// </summary>
     public async Task<IEnumerable<MonthlySalesResponse>> GetMonthlySalesReportAsync(int year)
     {
-        _logger.LogInformation($"Generating monthly sales report for year {year}");
+        _logger.LogInformation("Generating monthly sales report for year {Year}", year);
 
         var monthlySales = await _reportRepository.GetMonthlySalesAsync();
         var filteredSales = monthlySales
@@ -132,7 +143,6 @@ public class ReportService : IReportService
             })
             .ToList();
 
-        // Fill in missing months with zero values
         var allMonths = Enumerable.Range(1, 12)
             .Select(month =>
             {
@@ -151,12 +161,9 @@ public class ReportService : IReportService
         return allMonths;
     }
 
-    /// <summary>
-    /// Get monthly purchase summary for the current year
-    /// </summary>
     public async Task<IEnumerable<MonthlyPurchaseResponse>> GetMonthlyPurchaseReportAsync(int year)
     {
-        _logger.LogInformation($"Generating monthly purchase report for year {year}");
+        _logger.LogInformation("Generating monthly purchase report for year {Year}", year);
 
         var monthlyPurchases = await _reportRepository.GetMonthlyPurchasesAsync();
         var filteredPurchases = monthlyPurchases
@@ -173,7 +180,6 @@ public class ReportService : IReportService
             })
             .ToList();
 
-        // Fill in missing months with zero values
         var allMonths = Enumerable.Range(1, 12)
             .Select(month =>
             {
@@ -193,12 +199,9 @@ public class ReportService : IReportService
         return allMonths;
     }
 
-    /// <summary>
-    /// Get top selling parts report
-    /// </summary>
     public async Task<IEnumerable<TopSellingPartResponse>> GetTopSellingPartsReportAsync(int limit = 10)
     {
-        _logger.LogInformation($"Generating top selling parts report (limit: {limit})");
+        _logger.LogInformation("Generating top selling parts report with limit {Limit}", limit);
 
         var topParts = await _reportRepository.GetTopSellingPartsAsync(limit);
 
@@ -212,9 +215,6 @@ public class ReportService : IReportService
         }).ToList();
     }
 
-    /// <summary>
-    /// Get inventory summary report
-    /// </summary>
     public async Task<InventorySummaryResponse> GetInventorySummaryAsync()
     {
         _logger.LogInformation("Generating inventory summary report");
@@ -225,7 +225,10 @@ public class ReportService : IReportService
         var inventorySummary = new InventorySummaryResponse
         {
             TotalPartsInStock = parts.Count,
-            TotalInventoryValue = parts.Sum(p => p.Price * p.Stock),
+
+            // Correct accounting-style inventory value.
+            TotalInventoryValue = parts.Sum(p => p.CostPrice * p.Stock),
+
             LowStockCount = lowStockParts.Count,
             OutOfStockCount = parts.Count(p => p.Stock == 0),
             LowStockParts = lowStockParts.Select(p => new LowStockPartResponse
@@ -240,15 +243,12 @@ public class ReportService : IReportService
         return inventorySummary;
     }
 
-    /// <summary>
-    /// Get daily sales report for a date range
-    /// </summary>
     public async Task<IEnumerable<DailySalesResponse>> GetDailySalesReportAsync(DateTime startDate, DateTime endDate)
     {
         startDate = EnsureUtc(startDate);
         endDate = EnsureUtc(endDate);
 
-        _logger.LogInformation($"Generating daily sales report from {startDate} to {endDate}");
+        _logger.LogInformation("Generating daily sales report from {StartDate} to {EndDate}", startDate, endDate);
 
         var dailySales = await _reportRepository.GetDailySalesAsync(startDate, endDate);
 
@@ -260,26 +260,20 @@ public class ReportService : IReportService
         }).ToList();
     }
 
-    /// <summary>
-    /// Get profit and loss statement
-    /// </summary>
     public async Task<FinancialReportResponse> GetProfitAndLossStatementAsync(DateTime startDate, DateTime endDate)
     {
         startDate = EnsureUtc(startDate);
         endDate = EnsureUtc(endDate);
 
-        _logger.LogInformation($"Generating profit and loss statement from {startDate} to {endDate}");
+        _logger.LogInformation("Generating profit and loss statement from {StartDate} to {EndDate}", startDate, endDate);
 
-        // This uses the same logic as GetFinancialReportAsync
         return await GetFinancialReportAsync(startDate, endDate);
     }
 
-    private static DateTime EnsureUtc(DateTime value)
-        => value.Kind switch
-        {
-            DateTimeKind.Utc => value,
-            DateTimeKind.Local => value.ToUniversalTime(),
-            _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
-        };
+    private static DateTime EnsureUtc(DateTime value) => value.Kind switch
+    {
+        DateTimeKind.Utc => value,
+        DateTimeKind.Local => value.ToUniversalTime(),
+        _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
+    };
 }
-
