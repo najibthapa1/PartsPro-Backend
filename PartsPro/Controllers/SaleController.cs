@@ -44,4 +44,23 @@ public class SaleController : ControllerBase
         var sales = await _saleService.GetAllSalesAsync();
         return Ok(sales);
     }
+    
+    [HttpPost("{id:int}/email")]
+    public async Task<IActionResult> SendInvoiceEmail(int id)
+    {
+        var isSent = await _saleService.SendInvoiceEmailAsync(id);
+
+        if (!isSent)
+        {
+            return BadRequest(new
+            {
+                message = "Invoice email could not be sent. Please check customer email or SMTP settings."
+            });
+        }
+
+        return Ok(new
+        {
+            message = "Invoice email sent successfully."
+        });
+    }
 }
