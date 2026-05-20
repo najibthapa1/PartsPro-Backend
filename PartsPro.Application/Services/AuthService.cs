@@ -69,7 +69,7 @@ public class AuthService : IAuthService
         var token = await GenerateTokenAsync(user);
         var role = await GetUserRoleAsync(user);
 
-        // Get customer ID if user is a customer (needed for API calls like /api/customer/profile/{customerId})
+        // include customerId in the response for customer users
         int? customerId = null;
         if (role == "Customer")
         {
@@ -123,7 +123,6 @@ public class AuthService : IAuthService
 
         await _userManager.AddToRoleAsync(user, "Customer");
 
-        // Now save the customer details in our own Customer table
         var customer = new Customer
         {
             UserId = user.Id,
@@ -133,7 +132,6 @@ public class AuthService : IAuthService
         _customerRepository.Create(customer);
         await _customerRepository.SaveChangesAsync();
 
-        // If the customer provided vehicle info, save that too
         if (!string.IsNullOrEmpty(request.PlateNumber) && !string.IsNullOrEmpty(request.VehicleModel))
         {
             var vehicle = new Vehicle

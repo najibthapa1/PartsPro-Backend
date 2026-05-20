@@ -33,9 +33,7 @@ public class ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionMiddlewa
         };
 
         context.Response.StatusCode = statusCode;
-        
-        // Return a generic ProblemDetails object. 
-        // .NET will automatically handle things like TraceId if configured correctly.
+
         await context.Response.WriteAsJsonAsync(new ProblemDetails
         {
             Status = statusCode,

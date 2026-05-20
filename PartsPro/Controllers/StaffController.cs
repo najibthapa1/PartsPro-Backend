@@ -18,7 +18,7 @@ public class StaffController : ControllerBase
     }
 
     /// <summary>
-    /// Grabs a list of all staff members. We use pagination so we don't load too many at once!
+    /// Grabs a list of all staff members.
     /// </summary>
     [HttpGet]
     public async Task<ActionResult<IEnumerable<StaffResponse>>> GetAll(int pageNumber = 1, int pageSize = 10)
