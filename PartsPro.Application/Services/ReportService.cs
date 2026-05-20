@@ -55,11 +55,9 @@ public class ReportService : IReportService
 
         var parts = await _reportRepository.GetAllPartsWithInventoryAsync();
 
-        // Correct accounting-style inventory value.
         var totalInventoryValue = parts.Sum(p => p.CostPrice * p.Stock);
         var lowStockParts = parts.Where(p => p.Stock < 10).ToList();
 
-        // Correct COGS: only the cost of goods that were actually sold in the selected period.
         var costOfGoodsSold = sales
             .SelectMany(s => s.Items)
             .Sum(item => item.Quantity * item.Part.CostPrice);
@@ -69,8 +67,6 @@ public class ReportService : IReportService
             ? (grossProfit / totalSalesRevenue) * 100
             : 0;
 
-        // In this simplified system, net profit equals gross profit because other operating expenses
-        // are not stored separately. Unpaid purchase invoices are liabilities, not immediate P&L expenses.
         var netProfit = grossProfit;
 
         var activeCustomers = await _reportRepository.GetActiveCustomersCountAsync(startDate, endDate);
@@ -226,7 +222,6 @@ public class ReportService : IReportService
         {
             TotalPartsInStock = parts.Count,
 
-            // Correct accounting-style inventory value.
             TotalInventoryValue = parts.Sum(p => p.CostPrice * p.Stock),
 
             LowStockCount = lowStockParts.Count,
