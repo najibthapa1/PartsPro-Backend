@@ -1,5 +1,8 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 18
+VisualStudioVersion = 18.4.11620.152 stable
+MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PartsPro", "PartsPro\PartsPro.csproj", "{3A75498F-4C0B-4E6A-8842-63486F1B3AD0}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PartsPro.Application", "PartsPro.Application\PartsPro.Application.csproj", "{66A3AD88-3AB0-4505-9E9E-DD99A0D6747A}"
@@ -30,5 +33,11 @@ Global
 		{36F53B68-9838-4514-8880-79A4904C4C24}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{36F53B68-9838-4514-8880-79A4904C4C24}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{36F53B68-9838-4514-8880-79A4904C4C24}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {1A627C46-E9CC-4846-8F49-D2DC3C8DB22B}
 	EndGlobalSection
 EndGlobal
