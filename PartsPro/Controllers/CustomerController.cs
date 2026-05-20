@@ -195,6 +195,18 @@ public class CustomerController : ControllerBase
         return Ok(customers);
     }
 
+    /// <summary>
+    /// Generate customer-related insights report (regulars, high spenders, pending credits).
+    /// Staff can use this to identify business opportunities and follow up on credit records.
+    /// </summary>
+    [HttpGet("reports/insights")]
+    [Authorize(Roles = "Staff,Admin")]
+    public async Task<ActionResult<CustomerInsightSummaryResponse>> GetCustomerInsights()
+    {
+        var insights = await _customerService.GetCustomerInsightsAsync();
+        return Ok(insights);
+    }
+
     private async Task<bool> CanAccessCustomerAsync(int customerId)
     {
         if (User.IsInRole("Admin") || User.IsInRole("Staff")) return true;
