@@ -44,12 +44,10 @@ public static class DbSeeder
 
     /// <summary>
     /// Seed initial admin user
-    /// Email: admin@partspro.com
-    /// Password: Admin@123
     /// </summary>
     private static async Task SeedAdminAsync(UserManager<ApplicationUser> userManager)
     {
-        const string adminEmail = "admin@partspro.com";
+        const string adminEmail = "partsspro@gmail.com";
         const string adminPassword = "Admin@123";
         const string adminName = "System Administrator";
 
